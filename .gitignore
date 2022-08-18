@@ -1,0 +1,10 @@
+build/
+*.user
+*.filters
+.vs/
+Debug/
+CMakeFiles/
+./x64/
+PathTracer.dir/
+CMakeCache.txt
+cmake_install.cmake
