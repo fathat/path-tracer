@@ -10,6 +10,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 find_package(SDL2 REQUIRED)
 include_directories(${SDL2_INCLUDE_DIRS})
 
+include_directories("${CMAKE_CURRENT_LIST_DIR}/3rdParty")
+
 # add the executable
 add_executable(PathTracer main.cpp)
 target_link_libraries(PathTracer ${SDL2_LIBRARIES})
