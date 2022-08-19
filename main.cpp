@@ -5,35 +5,29 @@
 
 #include "color.h"
 
-constexpr size_t imageWidth = 512;
-constexpr size_t imageHeight = 384;
-
 void renderIntoBuffer(ImageBuffer& buffer)
 {
-    for (size_t y = 0; y < imageHeight; y++)
+    for (size_t y = 0; y < buffer.height(); y++)
     {
-        std::cout << "\rScanlines remaining: " << (imageHeight-1) - y << std::endl;
-        for (size_t x = 0; x < imageWidth; x++)
+        std::cout << "\rScanlines remaining: " << (buffer.height()-1) - y << std::endl;
+        for (size_t x = 0; x < buffer.width(); x++)
         {
-            const double r = static_cast<double>(x) / static_cast<double>(imageWidth - 1);
-            const double g = static_cast<double>(y) / static_cast<double>(imageHeight - 1);
+            const double r = static_cast<double>(x) / static_cast<double>(buffer.width() - 1);
+            const double g = static_cast<double>(y) / static_cast<double>(buffer.height() - 1);
             const double b = 0.25;
             const double a = 1.0;
 
             buffer.write(x, y, {r,g,b,a});
-
-            /*const size_t baseIndex = x * 4 + y * imageWidth * 4;
-
-            buffer[baseIndex] = static_cast<uint8_t>(a * 255);
-            buffer[baseIndex + 1] = static_cast<uint8_t>(b * 255);
-            buffer[baseIndex + 2] = static_cast<uint8_t>(g * 255);
-            buffer[baseIndex + 3] = static_cast<uint8_t>(r * 255);*/
         }
     }
 }
 
 int main(int argc, char* argv[])
 {
+    constexpr size_t imageWidth = 512;
+    constexpr size_t imageHeight = 384;
+
+
     //lets make a buffer!
     ImageBuffer buffer(imageWidth, imageHeight);
     renderIntoBuffer(buffer);
@@ -48,7 +42,7 @@ int main(int argc, char* argv[])
         SDL_WINDOWPOS_UNDEFINED,
         imageWidth,
         imageHeight,
-        0);
+        SDL_WINDOW_RESIZABLE);
 
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC);
     SDL_Texture* texture = SDL_CreateTexture(

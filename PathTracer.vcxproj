@@ -319,6 +319,8 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
   <ItemGroup>
     <ClCompile Include="C:\Users\ianov\Projects\path-tracer\main.cpp" />
     <ClInclude Include="C:\Users\ianov\Projects\path-tracer\color.h" />
+    <ClInclude Include="C:\Users\ianov\Projects\path-tracer\ray.h" />
+    <ClInclude Include="C:\Users\ianov\Projects\path-tracer\types.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="C:\Users\ianov\Projects\path-tracer\ZERO_CHECK.proj">

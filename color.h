@@ -16,7 +16,6 @@ public:
     : w(_w), h(_h)
     {
         buffer = std::make_unique<uint8_t[]>(w*h*4);
-        //buffer = std::unique_ptr<uint8_t[]>(new uint8_t[_w * _h * 4]);
     }
 
     inline void write(const size_t x, const size_t y, const Color& color)
@@ -29,9 +28,12 @@ public:
         buffer[baseIndex + 3] = static_cast<uint8_t>(color.r * 255);
     }
 
-    uint8_t* data() const { return buffer.get(); }
+    [[nodiscard]] uint8_t* data() const { return buffer.get(); }
 
-    size_t pitch() const { return w * 4; }
+    [[nodiscard]] size_t pitch() const { return w * 4; }
+
+    [[nodiscard]] size_t width() const { return w; }
+    [[nodiscard]] size_t height() const { return h; }
 
 protected:
     size_t w;
