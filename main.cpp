@@ -1,33 +1,42 @@
 #include <iostream>
 
-#include "SDL.h"
+#include <SDL.h>
 #include <glm/glm.hpp>
 
-constexpr size_t imageWidth = 640;
-constexpr size_t imageHeight = 480;
+#include "color.h"
 
-int main(int argc, char* argv[])
+constexpr size_t imageWidth = 512;
+constexpr size_t imageHeight = 384;
+
+void renderIntoBuffer(ImageBuffer& buffer)
 {
-    //lets make a buffer!
-    const auto buffer = new uint8_t[imageWidth * imageHeight * 4];
-
     for (size_t y = 0; y < imageHeight; y++)
     {
+        std::cout << "\rScanlines remaining: " << (imageHeight-1) - y << std::endl;
         for (size_t x = 0; x < imageWidth; x++)
         {
             const double r = static_cast<double>(x) / static_cast<double>(imageWidth - 1);
             const double g = static_cast<double>(y) / static_cast<double>(imageHeight - 1);
-            const double b = 0.0;
+            const double b = 0.25;
             const double a = 1.0;
 
-            const size_t baseIndex = x * 4 + y * imageWidth * 4;
+            buffer.write(x, y, {r,g,b,a});
+
+            /*const size_t baseIndex = x * 4 + y * imageWidth * 4;
 
             buffer[baseIndex] = static_cast<uint8_t>(a * 255);
             buffer[baseIndex + 1] = static_cast<uint8_t>(b * 255);
             buffer[baseIndex + 2] = static_cast<uint8_t>(g * 255);
-            buffer[baseIndex + 3] = static_cast<uint8_t>(r * 255);
+            buffer[baseIndex + 3] = static_cast<uint8_t>(r * 255);*/
         }
     }
+}
+
+int main(int argc, char* argv[])
+{
+    //lets make a buffer!
+    ImageBuffer buffer(imageWidth, imageHeight);
+    renderIntoBuffer(buffer);
 
     SDL_Event event;
 
@@ -42,21 +51,24 @@ int main(int argc, char* argv[])
         0);
 
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC);
-    SDL_Texture* texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, imageWidth, imageHeight);
+    SDL_Texture* texture = SDL_CreateTexture(
+        renderer, 
+        SDL_PIXELFORMAT_RGBA8888, 
+        SDL_TEXTUREACCESS_STREAMING, 
+        imageWidth, 
+        imageHeight);
 
-    SDL_UpdateTexture(texture, nullptr, buffer, imageWidth * 4);
+    SDL_UpdateTexture(
+        texture, 
+        nullptr, 
+        buffer.data(), 
+        buffer.pitch());
 
 
     SDL_SetRenderDrawColor(renderer, 0, 20, 80, SDL_ALPHA_OPAQUE);
     SDL_RenderClear(renderer);
     SDL_RenderPresent(renderer);
-
-    SDL_Rect r;
-    r.x = 200;
-    r.y = 200;
-    r.w = imageWidth;
-    r.h = imageHeight;
-
+    
     while (true) {
         if (SDL_PollEvent(&event) && event.type == SDL_QUIT)
             break;
