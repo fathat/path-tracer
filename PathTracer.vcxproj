@@ -323,6 +323,16 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ClInclude Include="C:\Users\ianov\Projects\path-tracer\types.h" />
     <ClInclude Include="C:\Users\ianov\Projects\path-tracer\image_buffer.h" />
     <ClCompile Include="C:\Users\ianov\Projects\path-tracer\image_buffer.cpp" />
+    <ClInclude Include="C:\Users\ianov\Projects\path-tracer\debug_utils.h" />
+    <ClCompile Include="C:\Users\ianov\Projects\path-tracer\debug_utils.cpp" />
+    <ClInclude Include="C:\Users\ianov\Projects\path-tracer\hittable.h" />
+    <ClCompile Include="C:\Users\ianov\Projects\path-tracer\hittable.cpp" />
+    <ClInclude Include="C:\Users\ianov\Projects\path-tracer\sphere.h" />
+    <ClCompile Include="C:\Users\ianov\Projects\path-tracer\sphere.cpp" />
+    <ClInclude Include="C:\Users\ianov\Projects\path-tracer\hittable_list.h" />
+    <ClCompile Include="C:\Users\ianov\Projects\path-tracer\hittable_list.cpp" />
+    <ClInclude Include="C:\Users\ianov\Projects\path-tracer\camera.h" />
+    <ClCompile Include="C:\Users\ianov\Projects\path-tracer\camera.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="C:\Users\ianov\Projects\path-tracer\ZERO_CHECK.proj">

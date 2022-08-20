@@ -1,6 +1,7 @@
 #pragma once
 #include <cstdint>
 #include <memory>
+#include "types.h"
 
 struct color
 {
@@ -33,4 +34,13 @@ inline color operator*(const double t, const color& c) {
 
 inline color operator+(const color& c1, const color& c2) {
     return {c1.r + c2.r, c1.g + c2.g, c1.b + c2.b, (c1.a + c2.a) * 0.5};
+}
+
+inline color operator+(const vec3_d v, const color& c) {
+    return {
+        v.x + c.r,
+        v.y + c.g,
+        v.z + c.b,
+        c.a
+    };
 }

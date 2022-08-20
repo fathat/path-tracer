@@ -24,5 +24,15 @@ add_executable(PathTracer
     ray.h 
     types.h
     image_buffer.h
-    image_buffer.cpp)
+    image_buffer.cpp
+    debug_utils.h
+    debug_utils.cpp
+    hittable.h
+    hittable.cpp
+    sphere.h
+    sphere.cpp
+    hittable_list.h
+    hittable_list.cpp
+    camera.h
+    camera.cpp)
 target_link_libraries(PathTracer ${SDL2_LIBRARIES})

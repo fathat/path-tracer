@@ -10,7 +10,7 @@ public:
 
     image_buffer(const uint32_t width, const uint32_t height);
 
-    void write(const uint32_t x, const uint32_t y, const color& color);
+    void write(const uint32_t x, const uint32_t y, const color& color, int samples_per_pixel=1);
 
     [[nodiscard]] uint8_t* data() const { return m_buffer.get(); }
     [[nodiscard]] int pitch() const;

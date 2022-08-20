@@ -2,12 +2,15 @@
 
 #include <SDL.h>
 
+#include "hittable.h"
+#include "hittable_list.h"
 #include "types.h"
 #include "image_buffer.h"
 #include "ray.h"
+#include "sphere.h"
 
 
-double hit_sphere(const vec3_d& center, double radius, const Ray& ray) {
+/*double hit_sphere(const vec3_d& center, double radius, const ray& ray) {
     const vec3_d oc = ray.origin() - center;
     const auto a = glm::length2(ray.direction());
     const auto half_b = dot(oc, ray.direction());
@@ -19,36 +22,20 @@ double hit_sphere(const vec3_d& center, double radius, const Ray& ray) {
     } else {
         return (-half_b - sqrt(discriminant) ) / a;
     }
-}
+}*/
 
 
-color ray_color(const Ray& ray) {
-    auto t = hit_sphere(point3(0,0,-1), 0.5, ray);
-    if (t > 0.0) {
-        const vec3_d surface_normal = glm::normalize(ray.at(t) - vec3_d(0,0,-1));
-        return 0.5*color(surface_normal.x+1, surface_normal.y+1, surface_normal.z+1);
+color ray_color(const ray& ray, const hittable& world) {
+    hit_record rec;
+    if (world.hit(ray, 0, infinity, rec)) {
+        return 0.5 * (rec.normal + color(1,1,1));
     }
     const vec3_d unit_direction = glm::normalize(ray.direction());
-    t = 0.5*(unit_direction.y + 1.0);
+    auto t = 0.5*(unit_direction.y + 1.0);
     return (1.0-t)*color(1.0, 1.0, 1.0) + t * color(0.5, 0.7, 1.0);
 }
 
-void render_test_pattern(image_buffer& buffer)
-{
-    for (size_t y = 0; y < buffer.height(); y++)
-    {
-        std::cout << "\rScanlines remaining: " << (buffer.height()-1) - y << std::endl;
-        for (size_t x = 0; x < buffer.width(); x++)
-        {
-            const double r = static_cast<double>(x) / static_cast<double>(buffer.width() - 1);
-            const double g = static_cast<double>(y) / static_cast<double>(buffer.height() - 1);
-            constexpr double b = 0.25;
-            constexpr double a = 1.0;
 
-            buffer.write(x, y, {r,g,b,a});
-        }
-    }
-}
 
 int main(int argc, char* argv[])
 {
@@ -57,9 +44,12 @@ int main(int argc, char* argv[])
     constexpr double aspect_ratio = static_cast<double>(image_width) / static_cast<double>(image_height);
         
     image_buffer image_buffer(image_width, image_height);
-    render_test_pattern(image_buffer);
 
-    
+    // world
+    hittable_list world;
+    world.add(make_shared<sphere>(point3(0,0,-1), 0.5));
+    world.add(make_shared<sphere>(point3(0,-100.5,-1), 100));
+
     // camera
     double viewport_height = 2.0;
     double viewport_width = aspect_ratio * viewport_height;
@@ -76,9 +66,9 @@ int main(int argc, char* argv[])
         for(int x = image_width-1; x>=0; --x) {
             double u = static_cast<double>(x) / (image_width-1);
             double v = static_cast<double>(y) / (image_height-1);
-            Ray ray(origin, lower_left_corner+u*horizontal + v*vertical - origin);
-            color pixelColor = ray_color(ray);
-            image_buffer.write(x, (image_height-1)-y, pixelColor);
+            ray ray(origin, lower_left_corner+u*horizontal + v*vertical - origin);
+            color pixel_color = ray_color(ray, world);
+            image_buffer.write(x, (image_height-1)-y, pixel_color);
         }
     }
 

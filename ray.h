@@ -2,24 +2,22 @@
 
 #include "types.h"
 
-class Ray {
+class ray {
 public:
 
-    Ray() {}
+    ray() = delete;
 
-    Ray(const vec3_d& origin, const vec3_d& direction)
-        : orig(origin), dir(direction) {
-        
-    }
+    ray(const vec3_d& origin, const vec3_d& direction)
+        : m_orig(origin), m_dir(direction) {}
 
-    [[nodiscard]] vec3_d origin() const { return orig; }
-    [[nodiscard]] vec3_d direction() const { return dir; }
+    [[nodiscard]] vec3_d origin() const { return m_orig; }
+    [[nodiscard]] vec3_d direction() const { return m_dir; }
 
-    [[nodiscard]] vec3_d at(double t) const {
-        return orig + t*dir;
+    [[nodiscard]] vec3_d at(const double t) const {
+        return m_orig + t*m_dir;
     }
 
 protected:
-    vec3_d orig;
-    vec3_d dir;
+    vec3_d m_orig;
+    vec3_d m_dir;
 };
