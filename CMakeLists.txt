@@ -18,5 +18,11 @@ include_directories(${SDL2_INCLUDE_DIRS})
 include_directories("${CMAKE_CURRENT_LIST_DIR}/3rdParty")
 
 # add the executable
-add_executable(PathTracer main.cpp color.h ray.h types.h)
+add_executable(PathTracer 
+    main.cpp 
+    color.h 
+    ray.h 
+    types.h
+    image_buffer.h
+    image_buffer.cpp)
 target_link_libraries(PathTracer ${SDL2_LIBRARIES})

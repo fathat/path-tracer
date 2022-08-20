@@ -2,44 +2,35 @@
 #include <cstdint>
 #include <memory>
 
-struct Color
+struct color
 {
     double r, g, b, a;
+
+    color()
+        : r(0), g(0), b(0), a(1.0)
+    {}
+
+    color(const double red, const double green, const double blue, const double alpha=1.0)
+    : r(red), g(green), b(blue), a(alpha) {}
+
+    static color from_int(const uint8_t red, const uint8_t green, const uint8_t blue, const uint8_t alpha=255) {
+        return {
+            static_cast<double>(red) / 255.0,
+            static_cast<double>(green) / 255.0,
+            static_cast<double>(blue) / 255.0,
+            static_cast<double>(alpha) / 255.0
+        };
+    }
 };
 
-class ImageBuffer
-{
-public:
-    ImageBuffer() = delete;
+inline color operator*(const color& c, const double t) {
+    return {c.r * t, c.g * t, c.b * t, c.a};
+}
 
-    ImageBuffer(const size_t _w, const size_t _h)
-    : w(_w), h(_h)
-    {
-        buffer = std::make_unique<uint8_t[]>(w*h*4);
-    }
+inline color operator*(const double t, const color& c) {
+    return {c.r * t, c.g * t, c.b * t, c.a};
+}
 
-    inline void write(const size_t x, const size_t y, const Color& color)
-    {
-        const size_t baseIndex = x * 4 + y * w * 4;
-
-        buffer[baseIndex] = static_cast<uint8_t>(color.a * 255);
-        buffer[baseIndex + 1] = static_cast<uint8_t>(color.b * 255);
-        buffer[baseIndex + 2] = static_cast<uint8_t>(color.g * 255);
-        buffer[baseIndex + 3] = static_cast<uint8_t>(color.r * 255);
-    }
-
-    [[nodiscard]] uint8_t* data() const { return buffer.get(); }
-
-    [[nodiscard]] size_t pitch() const { return w * 4; }
-
-    [[nodiscard]] size_t width() const { return w; }
-    [[nodiscard]] size_t height() const { return h; }
-
-protected:
-    size_t w;
-    size_t h;
-
-    std::unique_ptr<uint8_t[]> buffer;
-};
-
-
+inline color operator+(const color& c1, const color& c2) {
+    return {c1.r + c2.r, c1.g + c2.g, c1.b + c2.b, (c1.a + c2.a) * 0.5};
+}
