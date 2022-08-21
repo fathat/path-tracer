@@ -39,7 +39,7 @@ int main(int argc, char* argv[])
 {
     constexpr size_t image_width = 480;
     constexpr size_t image_height = 270;
-    constexpr int samples_per_pixel = 100;
+    constexpr int samples_per_pixel = 50;
         
     image_buffer image_buffer(image_width, image_height);
 
@@ -58,13 +58,21 @@ int main(int argc, char* argv[])
     world.add(make_shared<sphere>(point3(-1.0,    0.0, -1.0), -0.45, material_left));
     world.add(make_shared<sphere>(point3( 1.0,    0.0, -1.0),   0.5, material_right));
 
+    point3 look_from(3,3,2);
+    point3 look_at(0,0,-1);
+    vec3_d vup(0,1,0);
+    auto dist_to_focus = glm::length(look_from-look_at);
+    auto aperture = 1.0;
+
     camera cam(
         image_width, 
         image_height, 
-        20.0, 
-        point3(-2, 2, 1), 
-        point3(0, 0, -1), 
-        vec3_d(0, 1, 0));
+        60.0, 
+        look_from, 
+        look_at, 
+        vup,
+        aperture,
+        dist_to_focus);
 
     // render
     for(int y = image_height-1; y>=0; --y) {

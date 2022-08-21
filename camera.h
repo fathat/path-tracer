@@ -4,7 +4,7 @@
 
 class camera {
 public:
-    camera(const int width, const int height, double vfov, point3 look_from, point3 look_at, vec3_d up);
+    camera(const int width, const int height, double vfov, point3 look_from, point3 look_at, vec3_d up, double aperture, double focus_dist);
 
     [[nodiscard]] ray get_ray(double s, double t) const;
 
@@ -14,4 +14,7 @@ private:
     vec3_d m_horizontal;
     vec3_d m_vertical;
     double m_vfov;
+
+    vec3_d m_u, m_v, m_w;
+    double m_lens_radius;
 };

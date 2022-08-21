@@ -60,6 +60,14 @@ inline vec3_d random_unit_vector() {
     return glm::normalize(p);
 }
 
+inline vec3_d random_in_unit_disk() {
+    while (true) {
+        auto p = vec3_d(random_double(-1,1), random_double(-1,1), 0);
+        if (length2(p) >= 1) continue;
+        return p;
+    }
+}
+
 inline bool near_zero(const vec3_d& v) {
     const auto s = 1e-8;
     return (fabs(v.x) < s) && (fabs(v.y) < s) && (fabs(v.z) < s);
