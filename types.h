@@ -68,3 +68,10 @@ inline bool near_zero(const vec3_d& v) {
 inline vec3_d reflect(const vec3_d& v, const vec3_d& n) {
     return v - 2*dot(v,n)*n;
 }
+
+inline vec3_d refract(const vec3_d& uv, const vec3_d& n, const double etai_over_etat) {
+    const auto cos_theta = fmin(dot(-uv, n), 1.0);
+    const vec3_d r_out_perp =  etai_over_etat * (uv + cos_theta*n);
+    const vec3_d r_out_parallel = -sqrt(fabs(1.0 - length2(r_out_perp))) * n;
+    return r_out_perp + r_out_parallel;
+}
