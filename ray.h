@@ -5,7 +5,7 @@
 class ray {
 public:
 
-    ray() = delete;
+    ray(): m_orig(0,0,0), m_dir(0, 0, 1) {}
 
     ray(const vec3_d& origin, const vec3_d& direction)
         : m_orig(origin), m_dir(direction) {}

@@ -59,3 +59,12 @@ inline vec3_d random_unit_vector() {
     auto p = random_vec3(-1, 1);
     return glm::normalize(p);
 }
+
+inline bool near_zero(const vec3_d& v) {
+    const auto s = 1e-8;
+    return (fabs(v.x) < s) && (fabs(v.y) < s) && (fabs(v.z) < s);
+}
+
+inline vec3_d reflect(const vec3_d& v, const vec3_d& n) {
+    return v - 2*dot(v,n)*n;
+}

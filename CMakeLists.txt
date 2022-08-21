@@ -35,5 +35,7 @@ add_executable(PathTracer
     hittable_list.h
     hittable_list.cpp
     camera.h
-    camera.cpp)
+    camera.cpp
+    material.h
+    material.cpp)
 target_link_libraries(PathTracer ${SDL2_LIBRARIES})

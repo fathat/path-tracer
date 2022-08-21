@@ -32,8 +32,21 @@ inline color operator*(const double t, const color& c) {
     return {c.r * t, c.g * t, c.b * t, c.a};
 }
 
+inline color operator*(const color& c1, const color& c2) {
+    return {c1.r * c2.r, c1.g * c2.g, c1.b * c2.b, c1.a * c2.a};
+}
+
+inline color operator/(const color& c1, const color& c2) {
+    return {c1.r / c2.r, c1.g / c2.g, c1.b / c2.b, c1.a / c2.a};
+}
+
+
 inline color operator+(const color& c1, const color& c2) {
     return {c1.r + c2.r, c1.g + c2.g, c1.b + c2.b, (c1.a + c2.a) * 0.5};
+}
+
+inline color operator-(const color& c1, const color& c2) {
+    return {c1.r - c2.r, c1.g - c2.g, c1.b - c2.b, (c1.a + c2.a) * 0.5};
 }
 
 inline color operator+(const vec3_d& v, const color& c) {
@@ -51,3 +64,11 @@ inline color operator+=(color& c, const color& c2) {
     c.b += c2.b;
     return c;
 }
+
+inline color operator-=(color& c, const color& c2) {
+    c.r -= c2.r;
+    c.g -= c2.g;
+    c.b -= c2.b;
+    return c;
+}
+
