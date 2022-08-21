@@ -321,6 +321,7 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ClInclude Include="C:\Users\ianov\Projects\path-tracer\color.h" />
     <ClInclude Include="C:\Users\ianov\Projects\path-tracer\ray.h" />
     <ClInclude Include="C:\Users\ianov\Projects\path-tracer\types.h" />
+    <ClCompile Include="C:\Users\ianov\Projects\path-tracer\types.cpp" />
     <ClInclude Include="C:\Users\ianov\Projects\path-tracer\image_buffer.h" />
     <ClCompile Include="C:\Users\ianov\Projects\path-tracer\image_buffer.cpp" />
     <ClInclude Include="C:\Users\ianov\Projects\path-tracer\debug_utils.h" />

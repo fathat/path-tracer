@@ -23,6 +23,7 @@ add_executable(PathTracer
     color.h 
     ray.h 
     types.h
+    types.cpp
     image_buffer.h
     image_buffer.cpp
     debug_utils.h

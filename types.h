@@ -26,6 +26,7 @@ typedef glm::vec<3, double, glm::highp>	point3;
 using std::shared_ptr;
 using std::make_shared;
 using std::sqrt;
+using glm::length2;
 
 const double infinity = std::numeric_limits<double>::infinity();
 constexpr double pi = 3.1415926535897932385;
@@ -33,4 +34,28 @@ constexpr double pi = 3.1415926535897932385;
 inline double degrees_to_radians(const double degrees) {
     constexpr double pi_over_180 = pi / 180.0;
     return degrees * pi_over_180;
+}
+
+inline vec3_d random_vec3() {
+    return {random_double(), random_double(), random_double()};
+}
+
+inline vec3_d random_vec3(double min, double max) {
+    return {
+        random_double(min, max),
+        random_double(min, max),
+        random_double(min, max)};
+}
+
+inline vec3_d random_in_unit_sphere() {
+    while(true) {
+        auto p = random_vec3(-1, 1);
+        if(length2(p) >= 1) continue;
+        return p;
+    }
+}
+
+inline vec3_d random_unit_vector() {
+    auto p = random_vec3(-1, 1);
+    return glm::normalize(p);
 }

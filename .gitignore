@@ -3,6 +3,7 @@ build/
 *.filters
 .vs/
 Debug/
+Release/
 CMakeFiles/
 ./x64/
 PathTracer.dir/

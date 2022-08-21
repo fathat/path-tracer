@@ -2,6 +2,7 @@
 
 #include <SDL.h>
 
+#include "camera.h"
 #include "hittable.h"
 #include "hittable_list.h"
 #include "types.h"
@@ -9,39 +10,35 @@
 #include "ray.h"
 #include "sphere.h"
 
+using glm::normalize;
 
-/*double hit_sphere(const vec3_d& center, double radius, const ray& ray) {
-    const vec3_d oc = ray.origin() - center;
-    const auto a = glm::length2(ray.direction());
-    const auto half_b = dot(oc, ray.direction());
-    const auto c = glm::length2(oc) - radius*radius;
-    const auto discriminant = half_b*half_b - a*c;
+constexpr int max_bounces = 50;
 
-    if (discriminant < 0) {
-        return -1.0;
-    } else {
-        return (-half_b - sqrt(discriminant) ) / a;
+color ray_color(const ray& r, const hittable& world, int stack_depth=0) {
+    hit_record rec{};
+
+    if(stack_depth > max_bounces) {
+        return {0, 0, 0, 1};
     }
-}*/
 
-
-color ray_color(const ray& ray, const hittable& world) {
-    hit_record rec;
-    if (world.hit(ray, 0, infinity, rec)) {
-        return 0.5 * (rec.normal + color(1,1,1));
+    if (world.hit(r, 0.001, infinity, rec)) {
+        const point3 target = rec.p + rec.normal + random_unit_vector();
+        return 0.5 * ray_color(
+            ray(rec.p, target - rec.p), 
+            world,
+            stack_depth+1);
     }
-    const vec3_d unit_direction = glm::normalize(ray.direction());
+    const vec3_d unit_direction = normalize(r.direction());
     auto t = 0.5*(unit_direction.y + 1.0);
     return (1.0-t)*color(1.0, 1.0, 1.0) + t * color(0.5, 0.7, 1.0);
 }
 
 
-
 int main(int argc, char* argv[])
 {
-    constexpr size_t image_width = 950;
-    constexpr size_t image_height = 540;
-    constexpr double aspect_ratio = static_cast<double>(image_width) / static_cast<double>(image_height);
+    constexpr size_t image_width = 480;
+    constexpr size_t image_height = 270;
+    constexpr int samples_per_pixel = 100;
         
     image_buffer image_buffer(image_width, image_height);
 
@@ -51,24 +48,22 @@ int main(int argc, char* argv[])
     world.add(make_shared<sphere>(point3(0,-100.5,-1), 100));
 
     // camera
-    double viewport_height = 2.0;
-    double viewport_width = aspect_ratio * viewport_height;
-    double focal_length = 1.0;
-
-    vec3_d origin {0, 0, 0};
-    vec3_d horizontal {viewport_width, 0, 0};
-    vec3_d vertical {0, viewport_height, 0};
-    vec3_d lower_left_corner = origin - horizontal/2.0 - vertical/2.0 - vec3_d(0, 0, focal_length);
+    camera cam(image_width, image_height);
 
     // render
     for(int y = image_height-1; y>=0; --y) {
         std::cout << "\rScanlines remaining: " << (image_buffer.height()-1) - y << std::endl;
         for(int x = image_width-1; x>=0; --x) {
-            double u = static_cast<double>(x) / (image_width-1);
-            double v = static_cast<double>(y) / (image_height-1);
-            ray ray(origin, lower_left_corner+u*horizontal + v*vertical - origin);
-            color pixel_color = ray_color(ray, world);
-            image_buffer.write(x, (image_height-1)-y, pixel_color);
+            color pixel_color;
+
+            for(int s = 0; s<samples_per_pixel; s++) {
+                double u = (x+random_double()) / static_cast<double>(image_width-1);
+                double v = (y+random_double()) / static_cast<double>(image_height-1);
+                ray r = cam.get_ray(u, v);
+                pixel_color += ray_color(r, world);
+            }
+
+            image_buffer.write(x, (image_height-1)-y, pixel_color, samples_per_pixel);
         }
     }
 

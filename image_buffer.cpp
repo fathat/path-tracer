@@ -14,15 +14,15 @@ void image_buffer::write(const uint32_t x, const uint32_t y, const color& color,
     auto g = color.g;
     auto b = color.b;
 
-    const auto scale = 1.0 / samples_per_pixel;
-    r *= scale;
-    g *= scale;
-    b *= scale;
+    const auto scale = 1.0 / static_cast<double>(samples_per_pixel);
+    r = sqrt(r * scale);
+    g = sqrt(g * scale);
+    b = sqrt(b * scale);
 
     m_buffer[base_index] = static_cast<uint8_t>(color.a * 255);
-    m_buffer[base_index + 1] = static_cast<uint8_t>(clamp(color.b, 0.0, 1.0) * 255);
-    m_buffer[base_index + 2] = static_cast<uint8_t>(clamp(color.g, 0.0, 1.0) * 255);
-    m_buffer[base_index + 3] = static_cast<uint8_t>(clamp(color.r, 0.0, 1.0) * 255);
+    m_buffer[base_index + 1] = static_cast<uint8_t>(clamp(b, 0.0, 0.999) * 256);
+    m_buffer[base_index + 2] = static_cast<uint8_t>(clamp(g, 0.0, 0.999) * 256);
+    m_buffer[base_index + 3] = static_cast<uint8_t>(clamp(r, 0.0, 0.999) * 256);
 }
 
 int image_buffer::pitch() const { return m_w * num_channels; }
