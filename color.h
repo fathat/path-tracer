@@ -22,6 +22,14 @@ struct color
             static_cast<double>(alpha) / 255.0
         };
     }
+
+    static color random(double min = 0.0, double max = 1.0) {
+        return {
+            random_double(min, max),
+            random_double(min, max),
+            random_double(min, max)
+        };
+    }
 };
 
 inline color operator*(const color& c, const double t) {
