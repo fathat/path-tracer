@@ -1,8 +1,15 @@
 #include <iostream>
 
 #include <SDL.h>
+#include <chrono>
+
+#ifdef EMSCRIPTEN
+#include "emscripten.h"
+#endif
+
 
 #include "camera.h"
+#include "debug_utils.h"
 #include "hittable.h"
 #include "hittable_list.h"
 #include "types.h"
@@ -14,6 +21,11 @@
 using glm::normalize;
 
 constexpr int max_bounces = 50;
+
+struct scene {
+    hittable_list entities;
+    camera cam;
+};
 
 color ray_color(const ray& r, const hittable& world, int stack_depth=0) {
     hit_record rec{};
@@ -80,20 +92,8 @@ hittable_list random_scene() {
     return world;
 }
 
-
-
-int main(int argc, char* argv[])
-{
-    constexpr size_t image_width = 480*3;
-    constexpr size_t image_height = 270*3;
-    constexpr int samples_per_pixel = 100;
-        
-    image_buffer image_buffer(image_width, image_height);
-
-    // world
-    auto R = cos(pi/4);
-    
-    /*hittable_list world;
+hittable_list test_scene() {
+    hittable_list world;
 
     auto material_ground = make_shared<lambertian>(color(0.8, 0.8, 0.0));
     auto material_center = make_shared<lambertian>(color(0.1, 0.2, 0.5));
@@ -105,15 +105,157 @@ int main(int argc, char* argv[])
     world.add(make_shared<sphere>(point3(-1.0,    0.0, -1.0),   0.5, material_left));
     world.add(make_shared<sphere>(point3(-1.0,    0.0, -1.0), -0.45, material_left));
     world.add(make_shared<sphere>(point3( 1.0,    0.0, -1.0),   0.5, material_right));
+    return world;
+}
 
+struct render_config {
+
+    render_config(const camera& _camera, const hittable_list& _world, int _image_width, int _image_height, int _samples_per_pixel):
+        cam(_camera),
+        world(_world),
+        image_width(_image_width),
+        image_height(_image_height),
+        samples_per_pixel(_samples_per_pixel)
+    {
+        
+    }
+
+    int samples_per_pixel;
+    int max_bounces;
+    int image_width;
+    int image_height;
+    hittable_list world;
+    camera cam;
+};
+
+struct render_status {
+
+    render_status(const shared_ptr<image_buffer>& buffer): screen(buffer) {}
+    int x = 0;
+    int y = 0;
+    shared_ptr<image_buffer> screen;
+    bool done=false;
+    bool scanline_finished = false;
+};
+
+struct loop_context {
+
+    loop_context(render_config config, const shared_ptr<image_buffer>& buffer, SDL_Texture* texture, SDL_Renderer* renderer)
+        : texture(texture), renderer(renderer), screen(buffer), cfg(std::move(config)), status(buffer) {
+        int w, h;
+        SDL_QueryTexture(texture, &texture_format, nullptr, &w, &h);
+        assert(w == buffer->width());
+        assert(h == buffer->height());
+    }
+
+    SDL_Texture* texture;
+    uint32_t texture_format;
+
+    SDL_Renderer* renderer;
+
+    shared_ptr<image_buffer> screen;
+
+    render_config cfg;
+    render_status status;
+    
+};
+
+
+// returns the time taken in nanoseconds
+int64_t next_pixel(const render_config& cfg, render_status& cs) {
+
+    if(cs.done) {
+        return 0;
+    }
+
+    const auto start = std::chrono::system_clock::now();
+    
+    color pixel_color;
+    
+    for(int s = 0; s<cfg.samples_per_pixel; s++) {
+        double u = (cs.x+random_double()) / static_cast<double>(cfg.image_width-1);
+        double v = (cs.y+random_double()) / static_cast<double>(cfg.image_height-1);
+        ray r = cfg.cam.get_ray(u, v);
+        pixel_color += ray_color(r, cfg.world);
+    }
+        
+    cs.screen->write(cs.x, (cfg.image_height-1)-cs.y, pixel_color, cfg.samples_per_pixel);
+
+    cs.x++;
+    if(cs.x >= cfg.image_width) {
+        cs.x = 0;
+        cs.y++;
+        cs.scanline_finished = true;
+    }
+
+    if(cs.y >= cfg.image_height) {
+        cs.done = true;
+    }
+
+    const auto finish = std::chrono::system_clock::now();
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(finish - start).count();
+}
+
+void loop_fn(void* arg) {
+    const auto context = static_cast<loop_context*>(arg); 
+    SDL_SetRenderDrawColor(context->renderer, 255, 255, 255, 255);
+
+    uint64_t time_spent_rendering = 0;
+    constexpr uint64_t rendering_budget = 30 * 1000000; // 30 milliseconds (so we get ~30 fps for UI)
+    while(!context->status.done && time_spent_rendering<rendering_budget) {
+        time_spent_rendering += next_pixel(context->cfg, context->status);
+    }
+
+    if(context->status.scanline_finished) {
+        context->status.scanline_finished = false;
+        uint8_t* pixels;
+        int pitch;
+        SDL_LockTexture(context->texture, nullptr, reinterpret_cast<void**>(&pixels), &pitch);
+        memcpy(pixels, context->screen->data(), context->cfg.image_width*context->cfg.image_height*4);
+        SDL_UnlockTexture(context->texture);
+    }
+
+    SDL_RenderCopy(context->renderer, context->texture, nullptr, nullptr);
+    SDL_RenderPresent(context->renderer);
+}
+
+// This is the naieve/simple ray trace (not iterative or threaded, so blocks the interface)
+void raytrace_all_linear(const render_config& config, const shared_ptr<image_buffer>& screen) {
+    for(int y = screen->height()-1; y>=0; --y) {
+        std::cout << "\rScanlines remaining: " << (screen->height()-1) - y << std::endl;
+        for(int x = screen->width()-1; x>=0; --x) {
+            color pixel_color;
+
+            for(int s = 0; s<config.samples_per_pixel; s++) {
+                double u = (x+random_double()) / static_cast<double>(screen->width()-1);
+                double v = (y+random_double()) / static_cast<double>(screen->height()-1);
+                ray r = config.cam.get_ray(u, v);
+                pixel_color += ray_color(r, config.world);
+            }
+
+            screen->write(x, (screen->height()-1)-y, pixel_color, config.samples_per_pixel);
+        }
+    }
+}
+
+int main(int argc, char* argv[])
+{
+    constexpr size_t image_width = 480;
+    constexpr size_t image_height = 270;
+    constexpr int samples_per_pixel = 50;
+        
+    auto screen = make_shared<image_buffer>(image_width, image_height);
+
+    // world
+    auto R = cos(pi/4);
+    
+    /*
     point3 look_from(3,3,2);
     point3 look_at(0,0,-1);
     vec3_d vup(0,1,0);
     auto dist_to_focus = glm::length(look_from-look_at);
     auto aperture = 1.0;*/
-
-    auto world = random_scene();
-
+            
     point3 look_from(13,2,3);
     point3 look_at(0,0,0);
     vec3_d vup(0,1,0);
@@ -130,23 +272,9 @@ int main(int argc, char* argv[])
         aperture,
         dist_to_focus);
 
-    // render
-    for(int y = image_height-1; y>=0; --y) {
-        std::cout << "\rScanlines remaining: " << (image_buffer.height()-1) - y << std::endl;
-        for(int x = image_width-1; x>=0; --x) {
-            color pixel_color;
-
-            for(int s = 0; s<samples_per_pixel; s++) {
-                double u = (x+random_double()) / static_cast<double>(image_width-1);
-                double v = (y+random_double()) / static_cast<double>(image_height-1);
-                ray r = cam.get_ray(u, v);
-                pixel_color += ray_color(r, world);
-            }
-
-            image_buffer.write(x, (image_height-1)-y, pixel_color, samples_per_pixel);
-        }
-    }
-
+    render_config config(cam, random_scene(), image_width, image_height, samples_per_pixel);
+    
+    render_test_pattern(*screen);
 
     SDL_Event event;
 
@@ -171,22 +299,27 @@ int main(int argc, char* argv[])
     SDL_UpdateTexture(
         texture, 
         nullptr, 
-        image_buffer.data(), 
-        image_buffer.pitch());
+        screen->data(), 
+        screen->pitch());
 
 
     SDL_SetRenderDrawColor(renderer, 0, 20, 80, SDL_ALPHA_OPAQUE);
     SDL_RenderClear(renderer);
     SDL_RenderPresent(renderer);
-    
+
+    loop_context context(config, screen, texture, renderer);
+
+#ifdef EMSCRIPTEN
+    std::cout << "using emscripten loop" << std::endl;
+    emscripten_set_main_loop_arg(loop_fn, &context, -1, 1);
+#else
     while (true) {
         if (SDL_PollEvent(&event) && event.type == SDL_QUIT)
             break;
 
-        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-        SDL_RenderCopy(renderer, texture, nullptr, nullptr);
-        SDL_RenderPresent(renderer);
+        loop_fn(&context);
     }
+#endif
 
     SDL_DestroyWindow(window);
     SDL_Quit();
