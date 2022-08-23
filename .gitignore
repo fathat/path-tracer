@@ -9,3 +9,7 @@ CMakeFiles/
 PathTracer.dir/
 CMakeCache.txt
 cmake_install.cmake
+bin/
+*.ninja
+.ninja_deps
+.ninja_log
