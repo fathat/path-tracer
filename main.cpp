@@ -3,10 +3,16 @@
 #include <SDL.h>
 #include <chrono>
 
+#ifdef THREADS
+#include <thread>
+#endif
+
 #ifdef EMSCRIPTEN
 #include "emscripten.h"
 #endif
 
+
+#include <sstream>
 
 #include "camera.h"
 #include "debug_utils.h"
@@ -21,6 +27,11 @@
 using glm::normalize;
 
 constexpr int max_bounces = 50;
+
+#ifdef THREADS
+std::atomic_int g_dirty = 0;
+const auto processor_count = std::thread::hardware_concurrency();
+#endif
 
 struct scene {
     hittable_list entities;
@@ -161,6 +172,9 @@ struct loop_context {
 };
 
 
+// this method is for rendering the image without blocking the
+// window loop (so things stay responsive). Also lets you see
+// the image as it renders instead of just the final result.
 // returns the time taken in nanoseconds
 int64_t next_pixel(const render_config& cfg, render_status& cs) {
 
@@ -178,7 +192,7 @@ int64_t next_pixel(const render_config& cfg, render_status& cs) {
         ray r = cfg.cam.get_ray(u, v);
         pixel_color += ray_color(r, cfg.world);
     }
-        
+
     cs.screen->write(cs.x, (cfg.image_height-1)-cs.y, pixel_color, cfg.samples_per_pixel);
 
     cs.x++;
@@ -196,10 +210,38 @@ int64_t next_pixel(const render_config& cfg, render_status& cs) {
     return std::chrono::duration_cast<std::chrono::nanoseconds>(finish - start).count();
 }
 
+#ifdef THREADS
+void render_thread(const render_config& config, const shared_ptr<image_buffer>& buffer, int base, int offset) {
+    std::stringstream msg;
+    msg << "starting thread, base: " << base << ", offset: " << offset << std::endl;
+    std::cout << msg.str();
+
+    auto scanline = std::make_unique<color[]>(buffer->width());
+
+    for(int y = base; y < config.image_height; y += offset) {
+        for(int x=0; x<config.image_width; x++) {
+            color pixel_color;
+    
+            for(int s = 0; s<config.samples_per_pixel; s++) {
+                const double u = (x+random_double()) / static_cast<double>(config.image_width-1);
+                const double v = (y+random_double()) / static_cast<double>(config.image_height-1);
+                ray r = config.cam.get_ray(u, v);
+                pixel_color += ray_color(r, config.world);
+            }
+            scanline[x] = pixel_color;
+        }
+        buffer->write_line_sync((config.image_height-1) - y, scanline.get(), config.samples_per_pixel);
+        ++g_dirty;
+    }
+}
+#endif
+
 void loop_fn(void* arg) {
     const auto context = static_cast<loop_context*>(arg); 
     SDL_SetRenderDrawColor(context->renderer, 255, 255, 255, 255);
 
+#ifndef THREADS
+    // iterative solution
     uint64_t time_spent_rendering = 0;
     constexpr uint64_t rendering_budget = 30 * 1000000; // 30 milliseconds (so we get ~30 fps for UI)
     while(!context->status.done && time_spent_rendering<rendering_budget) {
@@ -214,6 +256,12 @@ void loop_fn(void* arg) {
         memcpy(pixels, context->screen->data(), context->cfg.image_width*context->cfg.image_height*4);
         SDL_UnlockTexture(context->texture);
     }
+#else
+    if(g_dirty) {
+        context->screen->update_texture_sync(context->texture);
+        g_dirty = 0;
+    }
+#endif
 
     SDL_RenderCopy(context->renderer, context->texture, nullptr, nullptr);
     SDL_RenderPresent(context->renderer);
@@ -240,9 +288,9 @@ void raytrace_all_linear(const render_config& config, const shared_ptr<image_buf
 
 int main(int argc, char* argv[])
 {
-    constexpr size_t image_width = 480;
-    constexpr size_t image_height = 270;
-    constexpr int samples_per_pixel = 50;
+    constexpr int image_width = 480;
+    constexpr int image_height = 270;
+    constexpr int samples_per_pixel = 75;
         
     auto screen = make_shared<image_buffer>(image_width, image_height);
 
@@ -305,9 +353,28 @@ int main(int argc, char* argv[])
 
     SDL_SetRenderDrawColor(renderer, 0, 20, 80, SDL_ALPHA_OPAQUE);
     SDL_RenderClear(renderer);
+    SDL_RenderCopy(renderer, texture, nullptr, nullptr);
     SDL_RenderPresent(renderer);
 
     loop_context context(config, screen, texture, renderer);
+
+#ifdef THREADS
+    // default to two threads if we can't detect the processor count, otherwise use
+    // 3/4ths of the processors (we want to leave a few open so the OS is responsive)
+    int pcount = static_cast<int>(processor_count*0.75);
+    if(pcount <= 1) {
+        pcount = 2;
+    }
+    std::cout << "processor count " << pcount << std::endl;
+    std::vector<std::thread> threads;
+
+    for(int i=0; i<pcount; i++) {
+        auto& t = threads.emplace_back(&render_thread, config, screen, i, pcount);
+        t.detach();
+        SDL_Delay(100); // stagger the thread timing a bit so they're not writing to the buffer all at the same time
+    }
+
+#endif
 
 #ifdef EMSCRIPTEN
     std::cout << "using emscripten loop" << std::endl;
@@ -320,9 +387,9 @@ int main(int argc, char* argv[])
         loop_fn(&context);
     }
 #endif
-
+    
     SDL_DestroyWindow(window);
     SDL_Quit();
-
+    
     return 0;
 }

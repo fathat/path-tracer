@@ -25,4 +25,24 @@ void image_buffer::write(const uint32_t x, const uint32_t y, const color& color,
     m_buffer[base_index + 3] = static_cast<uint8_t>(clamp(r, 0.0, 0.999) * 256);
 }
 
+#ifdef THREADS
+void image_buffer::write_line_sync(const uint32_t y, const color data[], int samples_per_pixel) {
+    std::lock_guard guard(m_mutex);
+
+    for(int x = 0; x < m_w; x++) {
+        write(x, y, data[x], samples_per_pixel);
+    }
+}
+
+void image_buffer::update_texture_sync(SDL_Texture* texture) {
+    std::lock_guard guard(m_mutex);
+    uint8_t* pixels;
+    int pitch;
+    SDL_LockTexture(texture, nullptr, reinterpret_cast<void**>(&pixels), &pitch);
+    memcpy(pixels, data(), m_w*m_h*4);
+    SDL_UnlockTexture(texture);
+}
+
+#endif
+
 int image_buffer::pitch() const { return m_w * num_channels; }

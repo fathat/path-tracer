@@ -4,8 +4,17 @@ set(SDL2_DIR "${CMAKE_CURRENT_LIST_DIR}/3rdParty/SDL2-2.0.22")
 
 # set the project name
 project(PathTracer VERSION 1.0)
-set(CMAKE_CXX_STANDARD 17)
+
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
+
+if (EMSCRIPTEN)
+    set(USE_FLAGS "-s USE_SDL=2 -s USE_FREETYPE=1 -O3")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${USE_FLAGS}")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${USE_FLAGS}")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${USE_FLAGS}")
+    set(CMAKE_EXECUTABLE_SUFFIX .html)
+endif()
 
 file(GLOB PathTracer_HEADERS *.h)
 file(GLOB PathTracer_SOURCE *.cpp)

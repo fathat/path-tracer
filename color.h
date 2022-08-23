@@ -5,7 +5,7 @@
 
 struct color
 {
-    double r, g, b, a;
+    double a, b, g, r;
 
     color()
         : r(0), g(0), b(0), a(1.0)
@@ -48,6 +48,9 @@ inline color operator/(const color& c1, const color& c2) {
     return {c1.r / c2.r, c1.g / c2.g, c1.b / c2.b, c1.a / c2.a};
 }
 
+inline color operator/(const color& c1, const double& d) {
+    return {c1.r / d, c1.g / d, c1.b / d, c1.a};
+}
 
 inline color operator+(const color& c1, const color& c2) {
     return {c1.r + c2.r, c1.g + c2.g, c1.b + c2.b, (c1.a + c2.a) * 0.5};

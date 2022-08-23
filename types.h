@@ -7,6 +7,10 @@
 #include <glm/vec3.hpp>
 #include <glm/gtx/norm.hpp>
 
+#ifndef EMSCRIPTEN
+#define THREADS
+#endif
+
 inline double random_double() {
     // Returns a random real in [0,1).
     return rand() / (RAND_MAX + 1.0);
@@ -23,6 +27,7 @@ typedef glm::vec<2, double, glm::highp>	vec2_d;
 
 typedef glm::vec<3, double, glm::highp>	point3;
 
+using std::unique_ptr;
 using std::shared_ptr;
 using std::make_shared;
 using std::sqrt;
