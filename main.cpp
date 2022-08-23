@@ -30,6 +30,7 @@ constexpr int max_bounces = 50;
 
 #ifdef THREADS
 std::atomic_int g_dirty = 0;
+std::atomic_bool g_quit_program = false;
 const auto processor_count = std::thread::hardware_concurrency();
 #endif
 
@@ -232,6 +233,10 @@ void render_thread(const render_config& config, const shared_ptr<image_buffer>& 
         }
         buffer->write_line_sync((config.image_height-1) - y, scanline.get(), config.samples_per_pixel);
         ++g_dirty;
+
+        if(g_quit_program) {
+            break;
+        }
     }
 }
 #endif
@@ -370,7 +375,7 @@ int main(int argc, char* argv[])
 
     for(int i=0; i<pcount; i++) {
         auto& t = threads.emplace_back(&render_thread, config, screen, i, pcount);
-        t.detach();
+        //t.detach();
         SDL_Delay(100); // stagger the thread timing a bit so they're not writing to the buffer all at the same time
     }
 
@@ -387,6 +392,12 @@ int main(int argc, char* argv[])
         loop_fn(&context);
     }
 #endif
+    g_quit_program = true;
+
+    for(auto& t : threads) {
+        if(t.joinable())
+            t.join();
+    }
     
     SDL_DestroyWindow(window);
     SDL_Quit();
