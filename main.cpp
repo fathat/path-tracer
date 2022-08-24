@@ -41,6 +41,7 @@ bool g_quit_program = false;
 #endif
 
 struct scene {
+    scene(const camera& camera, const hittable_list& ents): cam(camera), entities(ents) {}
     hittable_list entities;
     camera cam;
 };
@@ -64,8 +65,24 @@ color ray_color(const ray& r, const hittable& world, int stack_depth=0) {
     return (1.0-t)*color(1.0, 1.0, 1.0) + t * color(0.5, 0.7, 1.0);
 }
 
-hittable_list random_scene() {
+scene random_scene(int image_width, int image_height) {
     hittable_list world;
+
+    point3 look_from(13,2,3);
+    point3 look_at(0,0,0);
+    vec3_d vup(0,1,0);
+    auto dist_to_focus = 10.0;
+    auto aperture = 0.1;
+
+    camera cam(
+        image_width, 
+        image_height, 
+        60.0, 
+        look_from, 
+        look_at, 
+        vup,
+        aperture,
+        dist_to_focus);
 
     auto ground_material = make_shared<lambertian>(color(0.5, 0.5, 0.5));
     world.add(make_shared<sphere>(point3(0,-1000,0), 1000, ground_material));
@@ -107,11 +124,20 @@ hittable_list random_scene() {
     auto material3 = make_shared<metal>(color(0.7, 0.6, 0.5), 0.0);
     world.add(make_shared<sphere>(point3(4, 1, 0), 1.0, material3));
 
-    return world;
+    return {cam, world};
 }
 
-hittable_list test_scene() {
+scene test_scene(int image_width, int image_height) {
     hittable_list world;
+
+    constexpr point3 look_from(3,3,2);
+    constexpr point3 look_at(0,0,-1);
+    constexpr vec3_d vup(0,1,0);
+    const auto dist_to_focus = glm::length(look_from-look_at);
+    constexpr auto aperture = 1.0;
+
+    camera cam {image_width, image_height, 60.0, look_from, look_at, vup, aperture, dist_to_focus};
+
 
     auto material_ground = make_shared<lambertian>(color(0.8, 0.8, 0.0));
     auto material_center = make_shared<lambertian>(color(0.1, 0.2, 0.5));
@@ -123,27 +149,18 @@ hittable_list test_scene() {
     world.add(make_shared<sphere>(point3(-1.0,    0.0, -1.0),   0.5, material_left));
     world.add(make_shared<sphere>(point3(-1.0,    0.0, -1.0), -0.45, material_left));
     world.add(make_shared<sphere>(point3( 1.0,    0.0, -1.0),   0.5, material_right));
-    return world;
+    return {cam, world};
 }
 
 struct render_config {
 
-    render_config(const camera& _camera, const hittable_list& _world, int _image_width, int _image_height, int _samples_per_pixel):
-        cam(_camera),
-        world(_world),
-        image_width(_image_width),
-        image_height(_image_height),
-        samples_per_pixel(_samples_per_pixel)
-    {
-        
-    }
+    render_config(const scene& scene, int _samples_per_pixel):
+        scn(scene),
+        samples_per_pixel(_samples_per_pixel) {}
 
     int samples_per_pixel;
     int max_bounces;
-    int image_width;
-    int image_height;
-    hittable_list world;
-    camera cam;
+    scene scn;
 };
 
 struct render_status {
@@ -156,9 +173,9 @@ struct render_status {
     bool scanline_finished = false;
 };
 
-struct loop_context {
+struct app_state {
 
-    loop_context(
+    app_state(
         render_config config, 
         const shared_ptr<image_buffer>& buffer, 
         SDL_Texture* texture, 
@@ -196,26 +213,29 @@ int64_t next_pixel(const render_config& cfg, render_status& cs) {
     }
 
     const auto start = std::chrono::system_clock::now();
+
+    const auto& scn = cfg.scn;
+    const auto& cam = scn.cam;
     
     color pixel_color;
     
     for(int s = 0; s<cfg.samples_per_pixel; s++) {
-        double u = (cs.x+random_double()) / static_cast<double>(cfg.image_width-1);
-        double v = (cs.y+random_double()) / static_cast<double>(cfg.image_height-1);
-        ray r = cfg.cam.get_ray(u, v);
-        pixel_color += ray_color(r, cfg.world);
+        double u = (cs.x+random_double()) / static_cast<double>(cam.width()-1);
+        double v = (cs.y+random_double()) / static_cast<double>(cam.height()-1);
+        ray r = scn.cam.get_ray(u, v);
+        pixel_color += ray_color(r, scn.entities);
     }
 
-    cs.screen->write(cs.x, (cfg.image_height-1)-cs.y, pixel_color, cfg.samples_per_pixel);
+    cs.screen->write(cs.x, (cam.height()-1)-cs.y, pixel_color, cfg.samples_per_pixel);
 
     cs.x++;
-    if(cs.x >= cfg.image_width) {
+    if(cs.x >= cam.width()) {
         cs.x = 0;
         cs.y++;
         cs.scanline_finished = true;
     }
 
-    if(cs.y >= cfg.image_height) {
+    if(cs.y >= cam.height()) {
         cs.done = true;
     }
 
@@ -229,21 +249,25 @@ void render_thread(const render_config& config, const shared_ptr<image_buffer>& 
     msg << "starting thread, base: " << base << ", offset: " << offset << std::endl;
     std::cout << msg.str();
 
+    SDL_Delay(random_double(0, 100)); // stagger the thread timing a bit so they're not writing to the buffer all at the same time
+
+    const auto& scn = config.scn;
+    const auto& cam = scn.cam;
     auto scanline = std::make_unique<color[]>(buffer->width());
 
-    for(int y = base; y < config.image_height; y += offset) {
-        for(int x=0; x<config.image_width; x++) {
+    for(int y = base; y < cam.height(); y += offset) {
+        for(int x = 0; x < cam.width(); x++) {
             color pixel_color;
     
             for(int s = 0; s<config.samples_per_pixel; s++) {
-                const double u = (x+random_double()) / static_cast<double>(config.image_width-1);
-                const double v = (y+random_double()) / static_cast<double>(config.image_height-1);
-                ray r = config.cam.get_ray(u, v);
-                pixel_color += ray_color(r, config.world);
+                const double u = (x+random_double()) / static_cast<double>(cam.width()-1);
+                const double v = (y+random_double()) / static_cast<double>(cam.height()-1);
+                ray r = scn.cam.get_ray(u, v);
+                pixel_color += ray_color(r, scn.entities);
             }
             scanline[x] = pixel_color;
         }
-        buffer->write_line_sync((config.image_height-1) - y, scanline.get(), config.samples_per_pixel);
+        buffer->write_line_sync((cam.height()-1) - y, scanline.get(), config.samples_per_pixel);
         ++g_dirty;
 
         if(g_quit_program) {
@@ -254,7 +278,7 @@ void render_thread(const render_config& config, const shared_ptr<image_buffer>& 
 #endif
 
 void loop_fn(void* arg) {
-    const auto context = static_cast<loop_context*>(arg); 
+    const auto context = static_cast<app_state*>(arg); 
     SDL_SetRenderDrawColor(context->renderer, 255, 255, 255, 255);
 
 #ifndef THREADS
@@ -270,7 +294,7 @@ void loop_fn(void* arg) {
         uint8_t* pixels;
         int pitch;
         SDL_LockTexture(context->texture, nullptr, reinterpret_cast<void**>(&pixels), &pitch);
-        memcpy(pixels, context->screen->data(), context->cfg.image_width*context->cfg.image_height*4);
+        memcpy(pixels, context->screen->data(), context->cfg.scn.cam.width()*context->cfg.scn.cam.height()*4);
         SDL_UnlockTexture(context->texture);
     }
 #else
@@ -284,12 +308,17 @@ void loop_fn(void* arg) {
     while (SDL_PollEvent(&event))
     {
         ImGui_ImplSDL2_ProcessEvent(&event);
-#ifdef THREADS
-        if (event.type == SDL_QUIT)
+
+        if (event.type == SDL_QUIT) {
             g_quit_program = true;
-        if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_CLOSE && event.window.windowID == SDL_GetWindowID(context->window))
+        }
+
+        if (event.type == SDL_WINDOWEVENT 
+            && event.window.event == SDL_WINDOWEVENT_CLOSE 
+            && event.window.windowID == SDL_GetWindowID(context->window)) {
             g_quit_program = true;
-#endif
+        }
+
     }
 
     // Start the Dear ImGui frame
@@ -304,7 +333,7 @@ void loop_fn(void* arg) {
         static float f = 0.0f;
         static int counter = 0;
 
-        ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
+        ImGui::Begin("Ray Tracer");
 
         ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
         ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
@@ -313,10 +342,12 @@ void loop_fn(void* arg) {
         ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
         ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
 
-        if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
+        if (ImGui::Button("Render"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
             counter++;
         ImGui::SameLine();
-        ImGui::Text("counter = %d", counter);
+        if (ImGui::Button("Cancel")) {
+            std::cout << "cancelled" << std::endl;
+        }
 
         ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
         ImGui::End();
@@ -339,8 +370,8 @@ void raytrace_all_linear(const render_config& config, const shared_ptr<image_buf
             for(int s = 0; s<config.samples_per_pixel; s++) {
                 double u = (x+random_double()) / static_cast<double>(screen->width()-1);
                 double v = (y+random_double()) / static_cast<double>(screen->height()-1);
-                ray r = config.cam.get_ray(u, v);
-                pixel_color += ray_color(r, config.world);
+                ray r = config.scn.cam.get_ray(u, v);
+                pixel_color += ray_color(r, config.scn.entities);
             }
 
             screen->write(x, (screen->height()-1)-y, pixel_color, config.samples_per_pixel);
@@ -357,37 +388,10 @@ int main(int argc, char* argv[])
     auto screen = make_shared<image_buffer>(image_width, image_height);
 
     // world
-    auto R = cos(pi/4);
-    
-    /*
-    point3 look_from(3,3,2);
-    point3 look_at(0,0,-1);
-    vec3_d vup(0,1,0);
-    auto dist_to_focus = glm::length(look_from-look_at);
-    auto aperture = 1.0;*/
-            
-    point3 look_from(13,2,3);
-    point3 look_at(0,0,0);
-    vec3_d vup(0,1,0);
-    auto dist_to_focus = 10.0;
-    auto aperture = 0.1;
-
-    camera cam(
-        image_width, 
-        image_height, 
-        60.0, 
-        look_from, 
-        look_at, 
-        vup,
-        aperture,
-        dist_to_focus);
-
-    render_config config(cam, random_scene(), image_width, image_height, samples_per_pixel);
+    render_config config(random_scene(image_width, image_height), samples_per_pixel);
     
     render_test_pattern(*screen);
-
-    SDL_Event event;
-
+    
     SDL_Init(SDL_INIT_VIDEO);
 
     SDL_Window* window = SDL_CreateWindow(
@@ -429,7 +433,7 @@ int main(int argc, char* argv[])
     SDL_RenderCopy(renderer, texture, nullptr, nullptr);
     SDL_RenderPresent(renderer);
 
-    loop_context context(config, screen, texture, renderer, window);
+    app_state state(config, screen, texture, renderer, window);
 
 #ifdef THREADS
     // default to two threads if we can't detect the processor count, otherwise use
@@ -443,18 +447,16 @@ int main(int argc, char* argv[])
 
     for(int i=0; i<pcount; i++) {
         auto& t = threads.emplace_back(&render_thread, config, screen, i, pcount);
-        //t.detach();
-        SDL_Delay(100); // stagger the thread timing a bit so they're not writing to the buffer all at the same time
     }
 
 #endif
 
 #ifdef EMSCRIPTEN
     std::cout << "using emscripten loop" << std::endl;
-    emscripten_set_main_loop_arg(loop_fn, &context, -1, 1);
+    emscripten_set_main_loop_arg(loop_fn, &state, -1, 1);
 #else
     while (!g_quit_program) {
-        loop_fn(&context);
+        loop_fn(&state);
     }
 #endif
 
