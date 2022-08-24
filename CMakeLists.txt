@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 
 set(SDL2_DIR "${CMAKE_CURRENT_LIST_DIR}/3rdParty/SDL2-2.0.22")
+set(IMGUI_DIR "${CMAKE_CURRENT_LIST_DIR}/3rdParty/imgui")
 
 # set the project name
 project(PathTracer VERSION 1.0)
@@ -21,11 +22,16 @@ endif()
 
 file(GLOB PathTracer_HEADERS *.h)
 file(GLOB PathTracer_SOURCE *.cpp)
+file(GLOB IMGUI_HEADERS 3rdPart/imgui/*.h)
+file(GLOB IMGUI_SOURCE 3rdPart/imgui/*.cpp)
 
 source_group("Headers" FILES ${PathTracer_HEADERS})
+source_group("IMGUI Headers" FILES ${IMGUI_HEADERS})
+source_group("IMGUI Source" FILES ${IMGUI_SOURCE})
 
 find_package(SDL2 REQUIRED)
 include_directories(${SDL2_INCLUDE_DIRS})
+include_directories(${IMGUI_DIR})
 
 include_directories("${CMAKE_CURRENT_LIST_DIR}/3rdParty")
 
@@ -49,5 +55,20 @@ add_executable(PathTracer
     camera.h
     camera.cpp
     material.h
-    material.cpp)
+    material.cpp
+    3rdParty/imgui/imconfig.h
+    3rdParty/imgui/imgui_draw.cpp
+    3rdParty/imgui/imgui_impl_sdl.cpp
+    3rdParty/imgui/imgui_impl_sdl.h
+    3rdParty/imgui/imgui_impl_sdlrenderer.cpp
+    3rdParty/imgui/imgui_impl_sdlrenderer.h
+    3rdParty/imgui/imgui_internal.h
+    3rdParty/imgui/imgui_tables.cpp
+    3rdParty/imgui/imgui_widgets.cpp
+    3rdParty/imgui/imgui.cpp
+    3rdParty/imgui/imgui.h
+    3rdParty/imgui/imstb_rectpack.h
+    3rdParty/imgui/imstb_textedit.h
+    3rdParty/imgui/imstb_truetype.h
+    )
 target_link_libraries(PathTracer ${SDL2_LIBRARIES})

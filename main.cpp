@@ -3,6 +3,10 @@
 #include <SDL.h>
 #include <chrono>
 
+#include "imgui.h"
+#include "imgui_impl_sdl.h"
+#include "imgui_impl_sdlrenderer.h"
+
 #ifdef THREADS
 #include <thread>
 #endif
@@ -32,6 +36,8 @@ constexpr int max_bounces = 50;
 std::atomic_int g_dirty = 0;
 std::atomic_bool g_quit_program = false;
 const auto processor_count = std::thread::hardware_concurrency();
+#else
+bool g_quit_program = false;
 #endif
 
 struct scene {
@@ -152,8 +158,13 @@ struct render_status {
 
 struct loop_context {
 
-    loop_context(render_config config, const shared_ptr<image_buffer>& buffer, SDL_Texture* texture, SDL_Renderer* renderer)
-        : texture(texture), renderer(renderer), screen(buffer), cfg(std::move(config)), status(buffer) {
+    loop_context(
+        render_config config, 
+        const shared_ptr<image_buffer>& buffer, 
+        SDL_Texture* texture, 
+        SDL_Renderer* renderer, 
+        SDL_Window* window)
+        : texture(texture), renderer(renderer), screen(buffer), cfg(std::move(config)), status(buffer), window(window) {
         int w, h;
         SDL_QueryTexture(texture, &texture_format, nullptr, &w, &h);
         assert(w == buffer->width());
@@ -164,6 +175,7 @@ struct loop_context {
     uint32_t texture_format;
 
     SDL_Renderer* renderer;
+    SDL_Window* window;
 
     shared_ptr<image_buffer> screen;
 
@@ -268,7 +280,52 @@ void loop_fn(void* arg) {
     }
 #endif
 
+    SDL_Event event;
+    while (SDL_PollEvent(&event))
+    {
+        ImGui_ImplSDL2_ProcessEvent(&event);
+#ifdef THREADS
+        if (event.type == SDL_QUIT)
+            g_quit_program = true;
+        if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_CLOSE && event.window.windowID == SDL_GetWindowID(context->window))
+            g_quit_program = true;
+#endif
+    }
+
+    // Start the Dear ImGui frame
+    ImGui_ImplSDLRenderer_NewFrame();
+    ImGui_ImplSDL2_NewFrame();
+    ImGui::NewFrame();
+
+    {
+        static ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+        static bool show_demo_window=false;
+        static bool show_another_window=false;
+        static float f = 0.0f;
+        static int counter = 0;
+
+        ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
+
+        ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
+        ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
+        ImGui::Checkbox("Another Window", &show_another_window);
+
+        ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
+        ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
+
+        if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
+            counter++;
+        ImGui::SameLine();
+        ImGui::Text("counter = %d", counter);
+
+        ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+        ImGui::End();
+    }
+
+    ImGui::Render();
+
     SDL_RenderCopy(context->renderer, context->texture, nullptr, nullptr);
+    ImGui_ImplSDLRenderer_RenderDrawData(ImGui::GetDrawData());
     SDL_RenderPresent(context->renderer);
 }
 
@@ -293,8 +350,8 @@ void raytrace_all_linear(const render_config& config, const shared_ptr<image_buf
 
 int main(int argc, char* argv[])
 {
-    constexpr int image_width = 480;
-    constexpr int image_height = 270;
+    constexpr int image_width = 480*2;
+    constexpr int image_height = 270*2;
     constexpr int samples_per_pixel = 75;
         
     auto screen = make_shared<image_buffer>(image_width, image_height);
@@ -339,7 +396,7 @@ int main(int argc, char* argv[])
         SDL_WINDOWPOS_UNDEFINED,
         image_width,
         image_height,
-        SDL_WINDOW_RESIZABLE);
+        SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
 
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC);
     SDL_Texture* texture = SDL_CreateTexture(
@@ -355,13 +412,24 @@ int main(int argc, char* argv[])
         screen->data(), 
         screen->pitch());
 
+    // setup dear imgui
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+
+    ImGui::StyleColorsDark();
+
+    // Setup Platform/Renderer backends
+    ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);
+    ImGui_ImplSDLRenderer_Init(renderer);
+    
 
     SDL_SetRenderDrawColor(renderer, 0, 20, 80, SDL_ALPHA_OPAQUE);
     SDL_RenderClear(renderer);
     SDL_RenderCopy(renderer, texture, nullptr, nullptr);
     SDL_RenderPresent(renderer);
 
-    loop_context context(config, screen, texture, renderer);
+    loop_context context(config, screen, texture, renderer, window);
 
 #ifdef THREADS
     // default to two threads if we can't detect the processor count, otherwise use
@@ -385,20 +453,25 @@ int main(int argc, char* argv[])
     std::cout << "using emscripten loop" << std::endl;
     emscripten_set_main_loop_arg(loop_fn, &context, -1, 1);
 #else
-    while (true) {
-        if (SDL_PollEvent(&event) && event.type == SDL_QUIT)
-            break;
-
+    while (!g_quit_program) {
         loop_fn(&context);
     }
 #endif
-    g_quit_program = true;
 
+#ifdef THREADS
+    g_quit_program = true;
+        
     for(auto& t : threads) {
         if(t.joinable())
             t.join();
     }
-    
+#endif
+
+    ImGui_ImplSDLRenderer_Shutdown();
+    ImGui_ImplSDL2_Shutdown();
+    ImGui::DestroyContext();
+
+    SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
     
