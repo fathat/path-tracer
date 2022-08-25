@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.10)
 
+if (WIN32)
 set(SDL2_DIR "${CMAKE_CURRENT_LIST_DIR}/3rdParty/SDL2-2.0.22")
+endif()
 set(IMGUI_DIR "${CMAKE_CURRENT_LIST_DIR}/3rdParty/imgui")
 
 # set the project name
@@ -29,8 +31,13 @@ source_group("Headers" FILES ${PathTracer_HEADERS})
 source_group("IMGUI Headers" FILES ${IMGUI_HEADERS})
 source_group("IMGUI Source" FILES ${IMGUI_SOURCE})
 
+if (APPLE)
+find_package(SDL2 REQUIRED)
+else()
 find_package(SDL2 REQUIRED)
 include_directories(${SDL2_INCLUDE_DIRS})
+endif()
+
 include_directories(${IMGUI_DIR})
 
 include_directories("${CMAKE_CURRENT_LIST_DIR}/3rdParty")
@@ -71,4 +78,9 @@ add_executable(PathTracer
     3rdParty/imgui/imstb_textedit.h
     3rdParty/imgui/imstb_truetype.h
     )
+
+if (APPLE)
+target_link_libraries(PathTracer PRIVATE SDL2::SDL2)
+else()
 target_link_libraries(PathTracer ${SDL2_LIBRARIES})
+endif()
