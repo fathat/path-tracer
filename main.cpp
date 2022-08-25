@@ -24,13 +24,14 @@
 #include "hittable_list.h"
 #include "types.h"
 #include "image_buffer.h"
+#include "texture.h"
 #include "ray.h"
 #include "sphere.h"
 #include "material.h"
 
 using glm::normalize;
 
-constexpr int max_bounces = 50;
+constexpr int default_max_bounces = 50;
 
 #ifdef THREADS
 std::atomic_int g_dirty = 0;
@@ -41,12 +42,12 @@ bool g_quit_program = false;
 #endif
 
 struct scene {
-    scene(const camera& camera, const hittable_list& ents): cam(camera), entities(ents) {}
-    hittable_list entities;
+    scene(const camera& camera, const hittable_list_t& ents): cam(camera), entities(ents) {}
+    hittable_list_t entities;
     camera cam;
 };
 
-color ray_color(const ray& r, const hittable& world, int stack_depth=0) {
+color ray_color(const ray& r, const hittable& world, const int stack_depth, const int max_bounces) {
     hit_record rec{};
 
     if(stack_depth > max_bounces) {
@@ -57,7 +58,7 @@ color ray_color(const ray& r, const hittable& world, int stack_depth=0) {
         ray scattered;
         color attenuation;
         if (rec.mat->scatter(r, rec, attenuation, scattered))
-            return attenuation * ray_color(scattered, world, stack_depth+1);
+            return attenuation * ray_color(scattered, world, stack_depth+1, max_bounces);
         return {0,0,0};
     }
     const vec3_d unit_direction = normalize(r.direction());
@@ -66,13 +67,13 @@ color ray_color(const ray& r, const hittable& world, int stack_depth=0) {
 }
 
 scene random_scene(int image_width, int image_height) {
-    hittable_list world;
+    hittable_list_t world;
 
-    point3 look_from(13,2,3);
-    point3 look_at(0,0,0);
-    vec3_d vup(0,1,0);
-    auto dist_to_focus = 10.0;
-    auto aperture = 0.1;
+    const point3 look_from(13,2,3);
+    const point3 look_at(0,0,0);
+    const vec3_d vup(0,1,0);
+    const auto dist_to_focus = 10.0;
+    const auto aperture = 0.1;
 
     camera cam(
         image_width, 
@@ -128,7 +129,7 @@ scene random_scene(int image_width, int image_height) {
 }
 
 scene test_scene(int image_width, int image_height) {
-    hittable_list world;
+    hittable_list_t world;
 
     constexpr point3 look_from(3,3,2);
     constexpr point3 look_at(0,0,-1);
@@ -154,9 +155,9 @@ scene test_scene(int image_width, int image_height) {
 
 struct render_config {
 
-    render_config(const scene& scene, int _samples_per_pixel):
-        scn(scene),
-        samples_per_pixel(_samples_per_pixel) {}
+    render_config(scene scene, int samples_per_pixel):
+        samples_per_pixel(samples_per_pixel), max_bounces(default_max_bounces),
+        scn(std::move(scene)) {}
 
     int samples_per_pixel;
     int max_bounces;
@@ -165,10 +166,10 @@ struct render_config {
 
 struct render_status {
 
-    render_status(const shared_ptr<image_buffer>& buffer): screen(buffer) {}
+    render_status(const shared_ptr<streaming_image_texture_t>& screen): screen(screen) {}
     int x = 0;
     int y = 0;
-    shared_ptr<image_buffer> screen;
+    shared_ptr<streaming_image_texture_t> screen;
     bool done=false;
     bool scanline_finished = false;
 };
@@ -177,24 +178,15 @@ struct app_state {
 
     app_state(
         render_config config, 
-        const shared_ptr<image_buffer>& buffer, 
-        SDL_Texture* texture, 
+        const shared_ptr<streaming_image_texture_t>& screen, 
         SDL_Renderer* renderer, 
         SDL_Window* window)
-        : texture(texture), renderer(renderer), screen(buffer), cfg(std::move(config)), status(buffer), window(window) {
-        int w, h;
-        SDL_QueryTexture(texture, &texture_format, nullptr, &w, &h);
-        assert(w == buffer->width());
-        assert(h == buffer->height());
-    }
-
-    SDL_Texture* texture;
-    uint32_t texture_format;
+        : renderer(renderer), window(window), screen(screen), cfg(std::move(config)), status(screen) {}
 
     SDL_Renderer* renderer;
     SDL_Window* window;
 
-    shared_ptr<image_buffer> screen;
+    shared_ptr<streaming_image_texture_t> screen;
 
     render_config cfg;
     render_status status;
@@ -223,10 +215,10 @@ int64_t next_pixel(const render_config& cfg, render_status& cs) {
         double u = (cs.x+random_double()) / static_cast<double>(cam.width()-1);
         double v = (cs.y+random_double()) / static_cast<double>(cam.height()-1);
         ray r = scn.cam.get_ray(u, v);
-        pixel_color += ray_color(r, scn.entities);
+        pixel_color += ray_color(r, scn.entities, 0, cfg.max_bounces);
     }
 
-    cs.screen->write(cs.x, (cam.height()-1)-cs.y, pixel_color, cfg.samples_per_pixel);
+    cs.screen->image()->write(cs.x, (cam.height()-1)-cs.y, pixel_color, cfg.samples_per_pixel);
 
     cs.x++;
     if(cs.x >= cam.width()) {
@@ -244,16 +236,16 @@ int64_t next_pixel(const render_config& cfg, render_status& cs) {
 }
 
 #ifdef THREADS
-void render_thread(const render_config& config, const shared_ptr<image_buffer>& buffer, int base, int offset) {
+void render_thread(const render_config& config, const shared_ptr<streaming_image_texture_t>& screen, int base, int offset) {
     std::stringstream msg;
     msg << "starting thread, base: " << base << ", offset: " << offset << std::endl;
     std::cout << msg.str();
 
-    SDL_Delay(random_double(0, 100)); // stagger the thread timing a bit so they're not writing to the buffer all at the same time
+    SDL_Delay(static_cast<int>(random_double(0, 250))); // stagger the thread timing a bit so they're not writing to the buffer all at the same time
 
     const auto& scn = config.scn;
     const auto& cam = scn.cam;
-    auto scanline = std::make_unique<color[]>(buffer->width());
+    auto scanline = std::make_unique<color[]>(screen->width());
 
     for(int y = base; y < cam.height(); y += offset) {
         for(int x = 0; x < cam.width(); x++) {
@@ -263,11 +255,15 @@ void render_thread(const render_config& config, const shared_ptr<image_buffer>& 
                 const double u = (x+random_double()) / static_cast<double>(cam.width()-1);
                 const double v = (y+random_double()) / static_cast<double>(cam.height()-1);
                 ray r = scn.cam.get_ray(u, v);
-                pixel_color += ray_color(r, scn.entities);
+                pixel_color += ray_color(r, scn.entities, 0, config.max_bounces);
             }
             scanline[x] = pixel_color;
+
+            if(g_quit_program) {
+                return;
+            }
         }
-        buffer->write_line_sync((cam.height()-1) - y, scanline.get(), config.samples_per_pixel);
+        screen->image()->write_line_sync((cam.height()-1) - y, scanline.get(), config.samples_per_pixel);
         ++g_dirty;
 
         if(g_quit_program) {
@@ -291,15 +287,11 @@ void loop_fn(void* arg) {
 
     if(context->status.scanline_finished) {
         context->status.scanline_finished = false;
-        uint8_t* pixels;
-        int pitch;
-        SDL_LockTexture(context->texture, nullptr, reinterpret_cast<void**>(&pixels), &pitch);
-        memcpy(pixels, context->screen->data(), context->cfg.scn.cam.width()*context->cfg.scn.cam.height()*4);
-        SDL_UnlockTexture(context->texture);
+        context->screen->update_texture_sync();
     }
 #else
     if(g_dirty) {
-        context->screen->update_texture_sync(context->texture);
+        context->screen->update_texture_sync();
         g_dirty = 0;
     }
 #endif
@@ -355,13 +347,13 @@ void loop_fn(void* arg) {
 
     ImGui::Render();
 
-    SDL_RenderCopy(context->renderer, context->texture, nullptr, nullptr);
+    context->screen->present();
     ImGui_ImplSDLRenderer_RenderDrawData(ImGui::GetDrawData());
     SDL_RenderPresent(context->renderer);
 }
 
 // This is the naieve/simple ray trace (not iterative or threaded, so blocks the interface)
-void raytrace_all_linear(const render_config& config, const shared_ptr<image_buffer>& screen) {
+void raytrace_all_linear(const render_config& config, const shared_ptr<image_buffer_t>& screen) {
     for(int y = screen->height()-1; y>=0; --y) {
         std::cout << "\rScanlines remaining: " << (screen->height()-1) - y << std::endl;
         for(int x = screen->width()-1; x>=0; --x) {
@@ -371,7 +363,7 @@ void raytrace_all_linear(const render_config& config, const shared_ptr<image_buf
                 double u = (x+random_double()) / static_cast<double>(screen->width()-1);
                 double v = (y+random_double()) / static_cast<double>(screen->height()-1);
                 ray r = config.scn.cam.get_ray(u, v);
-                pixel_color += ray_color(r, config.scn.entities);
+                pixel_color += ray_color(r, config.scn.entities, 0, config.max_bounces);
             }
 
             screen->write(x, (screen->height()-1)-y, pixel_color, config.samples_per_pixel);
@@ -381,16 +373,10 @@ void raytrace_all_linear(const render_config& config, const shared_ptr<image_buf
 
 int main(int argc, char* argv[])
 {
-    constexpr int image_width = 480*2;
-    constexpr int image_height = 270*2;
-    constexpr int samples_per_pixel = 75;
+    constexpr int default_image_width = 480*2;
+    constexpr int default_image_height = 270*2;
+    constexpr int default_samples_per_pixel = 75;
         
-    auto screen = make_shared<image_buffer>(image_width, image_height);
-
-    // world
-    render_config config(random_scene(image_width, image_height), samples_per_pixel);
-    
-    render_test_pattern(*screen);
     
     SDL_Init(SDL_INIT_VIDEO);
 
@@ -398,80 +384,79 @@ int main(int argc, char* argv[])
         "SDL2Test",
         SDL_WINDOWPOS_UNDEFINED,
         SDL_WINDOWPOS_UNDEFINED,
-        image_width,
-        image_height,
+        default_image_width,
+        default_image_height,
         SDL_WINDOW_RESIZABLE);
 
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC);
-    SDL_Texture* texture = SDL_CreateTexture(
-        renderer, 
-        SDL_PIXELFORMAT_RGBA8888, 
-        SDL_TEXTUREACCESS_STREAMING, 
-        image_width, 
-        image_height);
 
-    SDL_UpdateTexture(
-        texture, 
-        nullptr, 
-        screen->data(), 
-        screen->pitch());
+    {
+        render_config config(random_scene(default_image_width, default_image_height), default_samples_per_pixel);
+        auto screen = make_shared<streaming_image_texture_t>(renderer, default_image_width, default_image_height);
 
-    // setup dear imgui
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO(); (void)io;
-
-    ImGui::StyleColorsDark();
-
-    // Setup Platform/Renderer backends
-    ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);
-    ImGui_ImplSDLRenderer_Init(renderer);
-    
-
-    SDL_SetRenderDrawColor(renderer, 0, 20, 80, SDL_ALPHA_OPAQUE);
-    SDL_RenderClear(renderer);
-    SDL_RenderCopy(renderer, texture, nullptr, nullptr);
-    SDL_RenderPresent(renderer);
-
-    app_state state(config, screen, texture, renderer, window);
-
-#ifdef THREADS
-    // default to two threads if we can't detect the processor count, otherwise use
-    // 3/4ths of the processors (we want to leave a few open so the OS is responsive)
-    int pcount = static_cast<int>(processor_count*0.75);
-    if(pcount <= 1) {
-        pcount = 2;
-    }
-    std::cout << "processor count " << pcount << std::endl;
-    std::vector<std::thread> threads;
-
-    for(int i=0; i<pcount; i++) {
-        auto& t = threads.emplace_back(&render_thread, config, screen, i, pcount);
-    }
-
-#endif
-
-#ifdef EMSCRIPTEN
-    std::cout << "using emscripten loop" << std::endl;
-    emscripten_set_main_loop_arg(loop_fn, &state, -1, 1);
-#else
-    while (!g_quit_program) {
-        loop_fn(&state);
-    }
-#endif
-
-#ifdef THREADS
-    g_quit_program = true;
+        // draw the test pattern so we don't have a black screen (also sanity
+        // checks that our texture is ok)
+        render_test_pattern(*screen->image());
+        screen->present();
+        SDL_RenderPresent(renderer);
         
-    for(auto& t : threads) {
-        if(t.joinable())
-            t.join();
-    }
-#endif
+        // setup dear imgui
+        IMGUI_CHECKVERSION();
+        ImGui::CreateContext();
+        ImGuiIO& io = ImGui::GetIO(); (void)io;
 
-    ImGui_ImplSDLRenderer_Shutdown();
-    ImGui_ImplSDL2_Shutdown();
-    ImGui::DestroyContext();
+        ImGui::StyleColorsDark();
+
+        // Setup Platform/Renderer backends
+        ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);
+        ImGui_ImplSDLRenderer_Init(renderer);
+        
+
+        SDL_SetRenderDrawColor(renderer, 0, 20, 80, SDL_ALPHA_OPAQUE);
+        SDL_RenderClear(renderer);
+        SDL_RenderCopy(renderer, screen->texture(), nullptr, nullptr);
+        SDL_RenderPresent(renderer);
+
+        app_state state(config, screen, renderer, window);
+
+    #ifdef THREADS
+        // default to two threads if we can't detect the processor count, otherwise use
+        // 3/4ths of the processors (we want to leave a few open so the OS is responsive)
+        int pcount = static_cast<int>(processor_count*0.75);
+        if(pcount <= 1) {
+            pcount = 2;
+        }
+        std::cout << "processor count " << pcount << std::endl;
+        std::vector<std::thread> threads;
+
+        for(int i=0; i<pcount; i++) {
+            auto& t = threads.emplace_back(&render_thread, config, screen, i, pcount);
+        }
+
+    #endif
+
+    #ifdef EMSCRIPTEN
+        std::cout << "using emscripten loop" << std::endl;
+        emscripten_set_main_loop_arg(loop_fn, &state, -1, 1);
+    #else
+        while (!g_quit_program) {
+            loop_fn(&state);
+        }
+    #endif
+
+    #ifdef THREADS
+        g_quit_program = true;
+            
+        for(auto& t : threads) {
+            if(t.joinable())
+                t.join();
+        }
+    #endif
+
+        ImGui_ImplSDLRenderer_Shutdown();
+        ImGui_ImplSDL2_Shutdown();
+        ImGui::DestroyContext();
+    }
 
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);

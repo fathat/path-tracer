@@ -1,7 +1,7 @@
 #include <iostream>
 #include "debug_utils.h"
 
-void render_test_pattern(image_buffer& buffer) {
+void render_test_pattern(image_buffer_t& buffer) {
     for (int y = 0; y < buffer.height(); y++)
     {
         for (int x = 0; x < buffer.width(); x++)

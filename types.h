@@ -1,5 +1,6 @@
 #pragma once
 
+#include <iostream>
 #include <cstdlib>
 #include <memory>
 #include <cmath>
@@ -8,7 +9,7 @@
 #include <glm/gtx/norm.hpp>
 
 #ifndef EMSCRIPTEN
-#define THREADS
+//#define THREADS
 #endif
 
 inline double random_double() {
@@ -27,9 +28,13 @@ typedef glm::vec<2, double, glm::highp>	vec2_d;
 
 typedef glm::vec<3, double, glm::highp>	point3;
 
+using std::cout;
+using std::endl;
+using std::stringstream;
 using std::unique_ptr;
 using std::shared_ptr;
 using std::make_shared;
+using std::make_unique;
 using std::sqrt;
 using glm::length2;
 
@@ -66,11 +71,14 @@ inline vec3_d random_unit_vector() {
 }
 
 inline vec3_d random_in_unit_disk() {
-    while (true) {
+    const auto d = normalize(vec3_d(random_double(-1,1), random_double(-1,1), 0));
+    const auto l = random_double(0.001, 1.0);
+    return d*l;
+    /*while (true) {
         auto p = vec3_d(random_double(-1,1), random_double(-1,1), 0);
         if (length2(p) >= 1) continue;
         return p;
-    }
+    }*/
 }
 
 inline bool near_zero(const vec3_d& v) {

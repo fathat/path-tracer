@@ -8,10 +8,10 @@ using std::shared_ptr;
 using std::make_shared;
 using std::vector;
 
-class hittable_list : public hittable {
+class hittable_list_t : public hittable {
     public:
-        hittable_list() = default;
-        explicit hittable_list(const shared_ptr<hittable>& object) { add(object); }
+        hittable_list_t() = default;
+        explicit hittable_list_t(const shared_ptr<hittable>& object) { add(object); }
 
         void clear();
         void add(const shared_ptr<hittable>& object);

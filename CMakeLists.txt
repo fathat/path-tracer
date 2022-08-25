@@ -63,6 +63,8 @@ add_executable(PathTracer
     camera.cpp
     material.h
     material.cpp
+    texture.h
+    texture.cpp
     3rdParty/imgui/imconfig.h
     3rdParty/imgui/imgui_draw.cpp
     3rdParty/imgui/imgui_impl_sdl.cpp
