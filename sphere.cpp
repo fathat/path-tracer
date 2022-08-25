@@ -3,11 +3,15 @@
 
 using namespace glm;
 
+inline double length_sq(const vec3_d& v) {
+    return v.x*v.x + v.y*v.y;
+}
+
 bool sphere::hit(const ray& r, double t_min, double t_max, hit_record& rec) const {
     const vec3_d oc = r.origin() - center;
-    const auto a = length2(r.direction());
+    const auto a = length_sq(r.direction());
     const auto half_b = dot(oc, r.direction());
-    const auto c = length2(oc) - radius*radius;
+    const auto c = length_sq(oc) - radius*radius;
 
     const auto discriminant = half_b*half_b - a*c;
     if (discriminant < 0) return false;

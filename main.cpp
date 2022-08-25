@@ -397,6 +397,9 @@ int main(int argc, char* argv[])
         // draw the test pattern so we don't have a black screen (also sanity
         // checks that our texture is ok)
         render_test_pattern(*screen->image());
+        SDL_SetRenderDrawColor(renderer, 0, 20, 80, SDL_ALPHA_OPAQUE);
+        SDL_RenderClear(renderer);
+        screen->update_texture_sync();
         screen->present();
         SDL_RenderPresent(renderer);
         
