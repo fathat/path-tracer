@@ -3,8 +3,8 @@
         {
             "name": "Win32",
             "includePath": [
-                "${workspaceFolder}/**",
-                "${workspaceFolder}/3rdParty",
+                "${workspaceFolder}/3rdParty/**",
+                "${workspaceFolder}/*",
                 "${workspaceFolder}/3rdParty/SDL2-2.0.22/include"
             ],
             "defines": [
