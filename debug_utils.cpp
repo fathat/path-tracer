@@ -1,7 +1,11 @@
 #include <iostream>
+#include "types.h"
 #include "debug_utils.h"
 
 void render_test_pattern(image_buffer_t& buffer) {
+#ifdef THREADS
+    std::lock_guard guard(*buffer.mutex());
+#endif
     for (int y = 0; y < buffer.height(); y++)
     {
         for (int x = 0; x < buffer.width(); x++)

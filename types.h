@@ -9,7 +9,7 @@
 #include <glm/gtx/norm.hpp>
 
 #ifndef EMSCRIPTEN
-//#define THREADS
+#define THREADS
 #endif
 
 inline double random_double() {

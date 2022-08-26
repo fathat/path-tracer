@@ -30,12 +30,12 @@
 #include "material.h"
 #include "scene.h"
 
+struct app_state;
 using glm::normalize;
 
 constexpr int default_max_bounces = 50;
 
 #ifdef THREADS
-std::atomic_int g_dirty = 0;
 std::atomic_bool g_quit_program = false;
 const auto processor_count = std::thread::hardware_concurrency();
 #else
@@ -67,7 +67,8 @@ color ray_color(const ray& r, const hittable& world, const int stack_depth, cons
 struct render_config {
 
     render_config(scene_t scene, int default_samples_per_pixel, int default_num_threads):
-        samples_per_pixel(default_samples_per_pixel), max_bounces(default_max_bounces), num_threads(default_num_threads),
+        num_threads(default_num_threads), samples_per_pixel(default_samples_per_pixel),
+        max_bounces(default_max_bounces),
         scn(std::move(scene)) {}
 
     int num_threads;
@@ -82,7 +83,8 @@ enum class render_state_t {
     inactive,
     rendering,
     cancelled,
-    done
+    done,
+    cleanup
 };
 
 std::string render_state_to_string(render_state_t state) {
@@ -91,6 +93,7 @@ std::string render_state_to_string(render_state_t state) {
         case render_state_t::rendering: return "rendering";
         case render_state_t::cancelled: return "cancelled";
         case render_state_t::done: return "done";
+        case render_state_t::cleanup: return "done";
     }
     assert(false);
     return "undefined";
@@ -98,11 +101,53 @@ std::string render_state_to_string(render_state_t state) {
 
 #ifdef THREADS
 class threaded_render_state_t {
+public:
+    threaded_render_state_t() = delete;
+    threaded_render_state_t(render_state_t state): m_state(state) {}
+    ~threaded_render_state_t() {
+        m_state = render_state_t::cleanup;
+        for(auto& t : m_render_threads) {
+            if(t.joinable()) {
+                t.join();
+            }
+        }
+    }
 
+    void cancel() { m_state = render_state_t::cancelled; }
+    void finish() { m_state = render_state_t::done; }
+
+    [[nodiscard]] double time() const { return m_time; }
+    void add_time(double t) { m_time += t; }
+
+    [[nodiscard]] render_state_t state() const { return m_state; }
+
+    [[nodiscard]] double progress() const { return static_cast<double>(m_pixels_rendered) / m_total_pixels;}
+
+    [[nodiscard]] void add_pixels_rendered(int num) { m_pixels_rendered += num; }
+
+    void set_total_pixels(int total) { m_total_pixels = total; }
+    
+    bool screen_needs_update() const { return m_screen_needs_update; }
+    void mark_screen_for_update() { m_screen_needs_update = true; }
+    void clear_update_flag() { m_screen_needs_update = false; }
+       
+
+    std::vector<std::thread> m_render_threads;
 protected:
-    int total_pixels = 0;
+
+    
+
+    std::atomic_int m_total_pixels = 1; // don't default to 0 to avoid divide by zero
+    std::atomic_int m_pixels_rendered = 0;
+    std::atomic_bool m_screen_needs_update = false;
+    
+    double m_time = 0.0;
+
+    std::atomic<render_state_t> m_state = render_state_t::inactive;
 };
-#endif
+typedef threaded_render_state_t render_status_t;
+
+#else
 
 class iterative_render_state_t {
 public:
@@ -140,6 +185,8 @@ protected:
 
     render_state_t m_state = render_state_t::inactive;
 };
+typedef iterative_render_state_t render_status_t;
+#endif
 
 struct app_state {
 
@@ -152,7 +199,7 @@ struct app_state {
 #ifndef THREADS
         render_status = make_unique<iterative_render_state_t>(render_state_t::inactive);
 #else 
-        render_status = make_unique<threaded_render_state_t>();
+        render_status = make_unique<threaded_render_state_t>(render_state_t::inactive);
 #endif
     }
 
@@ -164,6 +211,7 @@ struct app_state {
 
         cfg.scn.cam.resize(scaled_width, scaled_height);
         screen->resize(scaled_width, scaled_height);
+        render_status->set_total_pixels(scaled_width * scaled_height);
     }
 
     SDL_Renderer* renderer;
@@ -173,18 +221,13 @@ struct app_state {
 
     render_config cfg;
 
-#ifndef THREADS
-    unique_ptr<iterative_render_state_t> render_status;
-#else
-    unique_ptr<threaded_render_state_t> render_status;
-#endif
+    unique_ptr<render_status_t> render_status;
     
-#ifdef THREADS
-    std::vector<std::thread> render_threads;
-#endif
+
 };
 
 
+#ifndef THREADS
 // this method is for rendering the image without blocking the
 // window loop (so things stay responsive). Also lets you see
 // the image as it renders instead of just the final result.
@@ -232,20 +275,21 @@ int64_t next_pixel(app_state& state) {
     cs->add_time(ns);
     return ns;
 }
+#endif
 
 #ifdef THREADS
-void render_thread(const app_state& state, int base, int offset) {
+void render_thread(app_state* state, int base, int offset) {
     std::stringstream msg;
     msg << "starting thread, base: " << base << ", offset: " << offset << std::endl;
     std::cout << msg.str();
 
-    const auto& config = state.cfg;
+    const auto& config = state->cfg;
     
     SDL_Delay(static_cast<int>(random_double(0, 250))); // stagger the thread timing a bit so they're not writing to the buffer all at the same time
 
     const auto& scn = config.scn;
     const auto& cam = scn.cam;
-    auto scanline = std::make_unique<color[]>(state.screen->width());
+    auto scanline = std::make_unique<color[]>(state->screen->width());
 
     for(int y = base; y < cam.height(); y += offset) {
         for(int x = 0; x < cam.width(); x++) {
@@ -259,14 +303,19 @@ void render_thread(const app_state& state, int base, int offset) {
             }
             scanline[x] = pixel_color;
 
-            if(g_quit_program) {
+            if(g_quit_program 
+                || state->render_status->state() == render_state_t::cancelled
+                || state->render_status->state() == render_state_t::cleanup) {
                 return;
             }
         }
-        state.screen->image()->write_line_sync((cam.height()-1) - y, scanline.get(), config.samples_per_pixel);
-        ++g_dirty;
+        state->screen->image()->write_line_sync((cam.height()-1) - y, scanline.get(), config.samples_per_pixel);
+        state->render_status->add_pixels_rendered(state->screen->width());
+        state->render_status->mark_screen_for_update();
 
-        if(g_quit_program) {
+        if(g_quit_program 
+            || state->render_status->state() == render_state_t::cancelled
+            || state->render_status->state() == render_state_t::cleanup) {
             break;
         }
     }
@@ -274,7 +323,7 @@ void render_thread(const app_state& state, int base, int offset) {
 #endif
 
 void loop_fn(void* arg) {
-    const auto state = static_cast<app_state*>(arg); 
+    auto state = static_cast<app_state*>(arg); 
     SDL_SetRenderDrawColor(state->renderer, 255, 255, 255, 255);
 
 #ifndef THREADS
@@ -286,7 +335,7 @@ void loop_fn(void* arg) {
     // rendering and texture copying take less than 2 ms)
     constexpr uint64_t rendering_budget = 30 * 1000000; 
 
-    while(state->render_status->state() == render_state_t::rendering && time_spent_rendering<rendering_budget) {
+    while(state->render_status->state() == render_state_t::rendering && time_spent_rendering < rendering_budget) {
         time_spent_rendering += next_pixel(*state);
     }
 
@@ -296,10 +345,17 @@ void loop_fn(void* arg) {
     }
 
 #else
-    if(g_dirty) {
+    const auto start = std::chrono::system_clock::now();
+
+    if(state->render_status->screen_needs_update()) {
         state->screen->update_texture_sync();
-        g_dirty = 0;
+        state->render_status->clear_update_flag();
     }
+
+    if(state->render_status->progress() >= 1.0) {
+        state->render_status->finish();
+    }
+
 #endif
 
     SDL_Event event;
@@ -366,12 +422,13 @@ void loop_fn(void* arg) {
 
         ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 
+        ImGui::BeginDisabled(state->render_status->state() == render_state_t::rendering);
 #ifdef THREADS
         ImGui::SliderInt("Threads", &state->cfg.num_threads, 1, static_cast<int>(processor_count));
 #endif
 
         if(ImGui::SliderInt("Scale", &state->cfg.scale, 1, 4)) {
-            state->render_status = make_unique<iterative_render_state_t>(render_state_t::inactive);
+            state->render_status = make_unique<render_status_t>(render_state_t::inactive);
             state->handle_resize();
             render_test_pattern(*state->screen->image());
             state->screen->update_texture_sync();
@@ -380,20 +437,35 @@ void loop_fn(void* arg) {
         ImGui::SliderInt("Bounces", &state->cfg.max_bounces, 1, 200);
         ImGui::SliderInt("Samples Per Pixel", &state->cfg.samples_per_pixel, 1, 200);
 
+        ImGui::EndDisabled();
+
         if(state->render_status->state() != render_state_t::inactive) {
             ImGui::Text("State: %s, Time: %ds", render_state_to_string(state->render_status->state()).c_str(), static_cast<int>((state->render_status->time() / 1000000.0) / 1000.0));
 
-            ImGui::PushStyleColor(ImGuiCol_Header, {1.0, 0.0, 0.0, 1.0});
-            ImGui::ProgressBar(state->render_status->progress());
+            ImVec4 color = (state->render_status->state() == render_state_t::rendering || state->render_status->state() == render_state_t::done)
+                            ? ImVec4{ 66.0f/255.0f, 245.0f/255.0f, 191.0f/255.0f, 1.0}
+                            : ImVec4{ 245.0f/255.0f, 66.0f/255.0f, 93.0f/255.0f, 1.0};
+
+            ImGui::PushStyleColor(ImGuiCol_PlotHistogram, color);
+            ImGui::ProgressBar(static_cast<float>(state->render_status->progress()));
             ImGui::PopStyleColor();
         }
+        
 
+        
+        ImGui::BeginDisabled(state->render_status->state() == render_state_t::rendering);
         if (ImGui::Button("Render")) {
             std::cout << "start render" << std::endl;
             render_test_pattern(*state->screen->image());
-            state->render_status = make_unique<iterative_render_state_t>(render_state_t::rendering);
-        } 
+            state->render_status = make_unique<render_status_t>(render_state_t::rendering);
+            state->render_status->set_total_pixels(state->screen->width() * state->screen->height());
 
+            for(int i = 0; i<state->cfg.num_threads; i++) {
+                int num_threads = state->cfg.num_threads;
+                state->render_status->m_render_threads.emplace_back(&render_thread, state, i, num_threads);
+            }
+        } 
+        ImGui::EndDisabled();
         
         ImGui::SameLine();
 
@@ -407,9 +479,10 @@ void loop_fn(void* arg) {
 
         ImGui::SameLine();
 
-        ImGui::BeginDisabled(state->render_status->state() == render_state_t::inactive);
+        ImGui::BeginDisabled(state->render_status->state() == render_state_t::inactive || state->render_status->state() == render_state_t::rendering);
         if (ImGui::Button("Reset")) {
-            state->render_status = make_unique<iterative_render_state_t>(render_state_t::inactive);
+            state->render_status->cancel();
+            state->render_status = make_unique<render_status_t>(render_state_t::inactive);
             state->handle_resize();
             render_test_pattern(*state->screen->image());
             state->screen->update_texture_sync();
@@ -425,6 +498,13 @@ void loop_fn(void* arg) {
     state->screen->present();
     ImGui_ImplSDLRenderer_RenderDrawData(ImGui::GetDrawData());
     SDL_RenderPresent(state->renderer);
+
+    const auto finish = std::chrono::system_clock::now();
+
+    if(state->render_status->state() == render_state_t::rendering) {
+        const auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(finish - start).count();
+        state->render_status->add_time(static_cast<double>(ns));
+    }
 }
 
 // This is the naieve/simple ray trace (not iterative or threaded, so blocks the interface)
@@ -502,17 +582,7 @@ int main(int argc, char* argv[])
         SDL_RenderPresent(renderer);
 
         app_state state(config, screen, renderer, window);
-
-    #ifdef THREADS
         
-        std::cout << "processor count " << default_thread_count << std::endl;
-        std::vector<std::thread> threads;
-
-        for(int i=0; i<default_thread_count; i++) {
-            auto& t = threads.emplace_back(&render_thread, config, screen, i, default_thread_count);
-        }
-
-    #endif
 
     #ifdef EMSCRIPTEN
         std::cout << "using emscripten loop" << std::endl;
@@ -525,11 +595,6 @@ int main(int argc, char* argv[])
 
     #ifdef THREADS
         g_quit_program = true;
-            
-        for(auto& t : threads) {
-            if(t.joinable())
-                t.join();
-        }
     #endif
 
         ImGui_ImplSDLRenderer_Shutdown();
