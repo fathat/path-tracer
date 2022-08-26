@@ -28,6 +28,7 @@
 #include "ray.h"
 #include "sphere.h"
 #include "material.h"
+#include "scene.h"
 
 using glm::normalize;
 
@@ -38,14 +39,10 @@ std::atomic_int g_dirty = 0;
 std::atomic_bool g_quit_program = false;
 const auto processor_count = std::thread::hardware_concurrency();
 #else
+const auto processor_count = 1;
 bool g_quit_program = false;
 #endif
 
-struct scene {
-    scene(const camera& camera, const hittable_list_t& ents): cam(camera), entities(ents) {}
-    hittable_list_t entities;
-    camera cam;
-};
 
 color ray_color(const ray& r, const hittable& world, const int stack_depth, const int max_bounces) {
     hit_record rec{};
@@ -66,112 +63,82 @@ color ray_color(const ray& r, const hittable& world, const int stack_depth, cons
     return (1.0-t)*color(1.0, 1.0, 1.0) + t * color(0.5, 0.7, 1.0);
 }
 
-scene random_scene(int image_width, int image_height) {
-    hittable_list_t world;
-
-    const point3 look_from(13,2,3);
-    const point3 look_at(0,0,0);
-    const vec3_d vup(0,1,0);
-    const auto dist_to_focus = 10.0;
-    const auto aperture = 0.1;
-
-    camera cam(
-        image_width, 
-        image_height, 
-        60.0, 
-        look_from, 
-        look_at, 
-        vup,
-        aperture,
-        dist_to_focus);
-
-    auto ground_material = make_shared<lambertian>(color(0.5, 0.5, 0.5));
-    world.add(make_shared<sphere>(point3(0,-1000,0), 1000, ground_material));
-
-    for (int a = -11; a < 11; a++) {
-        for (int b = -11; b < 11; b++) {
-            auto choose_mat = random_double();
-            point3 center(a + 0.9*random_double(), 0.2, b + 0.9*random_double());
-
-            if ((center - point3(4, 0.2, 0)).length() > 0.9) {
-                shared_ptr<material> sphere_material;
-
-                if (choose_mat < 0.8) {
-                    // diffuse
-                    auto albedo = color::random() * color::random();
-                    sphere_material = make_shared<lambertian>(albedo);
-                    world.add(make_shared<sphere>(center, 0.2, sphere_material));
-                } else if (choose_mat < 0.95) {
-                    // metal
-                    auto albedo = color::random(0.5, 1);
-                    auto fuzz = random_double(0, 0.5);
-                    sphere_material = make_shared<metal>(albedo, fuzz);
-                    world.add(make_shared<sphere>(center, 0.2, sphere_material));
-                } else {
-                    // glass
-                    sphere_material = make_shared<dielectric>(1.5);
-                    world.add(make_shared<sphere>(center, 0.2, sphere_material));
-                }
-            }
-        }
-    }
-
-    auto material1 = make_shared<dielectric>(1.5);
-    world.add(make_shared<sphere>(point3(0, 1, 0), 1.0, material1));
-
-    auto material2 = make_shared<lambertian>(color(0.4, 0.2, 0.1));
-    world.add(make_shared<sphere>(point3(-4, 1, 0), 1.0, material2));
-
-    auto material3 = make_shared<metal>(color(0.7, 0.6, 0.5), 0.0);
-    world.add(make_shared<sphere>(point3(4, 1, 0), 1.0, material3));
-
-    return {cam, world};
-}
-
-scene test_scene(int image_width, int image_height) {
-    hittable_list_t world;
-
-    constexpr point3 look_from(3,3,2);
-    constexpr point3 look_at(0,0,-1);
-    constexpr vec3_d vup(0,1,0);
-    const auto dist_to_focus = glm::length(look_from-look_at);
-    constexpr auto aperture = 1.0;
-
-    camera cam {image_width, image_height, 60.0, look_from, look_at, vup, aperture, dist_to_focus};
-
-
-    auto material_ground = make_shared<lambertian>(color(0.8, 0.8, 0.0));
-    auto material_center = make_shared<lambertian>(color(0.1, 0.2, 0.5));
-    auto material_left   = make_shared<dielectric>(1.5);
-    auto material_right  = make_shared<metal>(color(0.8, 0.6, 0.2), 0.0);
-
-    world.add(make_shared<sphere>(point3( 0.0, -100.5, -1.0), 100.0, material_ground));
-    world.add(make_shared<sphere>(point3( 0.0,    0.0, -1.0),   0.5, material_center));
-    world.add(make_shared<sphere>(point3(-1.0,    0.0, -1.0),   0.5, material_left));
-    world.add(make_shared<sphere>(point3(-1.0,    0.0, -1.0), -0.45, material_left));
-    world.add(make_shared<sphere>(point3( 1.0,    0.0, -1.0),   0.5, material_right));
-    return {cam, world};
-}
 
 struct render_config {
 
-    render_config(scene scene, int samples_per_pixel):
-        samples_per_pixel(samples_per_pixel), max_bounces(default_max_bounces),
+    render_config(scene_t scene, int default_samples_per_pixel, int default_num_threads):
+        samples_per_pixel(default_samples_per_pixel), max_bounces(default_max_bounces), num_threads(default_num_threads),
         scn(std::move(scene)) {}
 
+    int num_threads;
     int samples_per_pixel;
     int max_bounces;
-    scene scn;
+    int scale=1;
+
+    scene_t scn;
 };
 
-struct render_status {
+enum class render_state_t {
+    inactive,
+    rendering,
+    cancelled,
+    done
+};
 
-    render_status(const shared_ptr<streaming_image_texture_t>& screen): screen(screen) {}
-    int x = 0;
-    int y = 0;
-    shared_ptr<streaming_image_texture_t> screen;
-    bool done=false;
-    bool scanline_finished = false;
+std::string render_state_to_string(render_state_t state) {
+    switch(state) {
+        case render_state_t::inactive: return "inactive";
+        case render_state_t::rendering: return "rendering";
+        case render_state_t::cancelled: return "cancelled";
+        case render_state_t::done: return "done";
+    }
+    assert(false);
+    return "undefined";
+}
+
+#ifdef THREADS
+class threaded_render_state_t {
+
+protected:
+    int total_pixels = 0;
+};
+#endif
+
+class iterative_render_state_t {
+public:
+
+    iterative_render_state_t(render_state_t state): m_state(state) {}
+
+    void cancel() { m_state = render_state_t::cancelled; }
+    void finish() { m_state = render_state_t::done; }
+
+    [[nodiscard]] bool is_scanline_finished() const { return m_scanline_finished; }
+    void mark_scanline_finished() { m_scanline_finished = true; }
+    void clear_scanline_flag() { m_scanline_finished = false; }
+
+    [[nodiscard]] render_state_t state() const { return m_state; }
+
+    [[nodiscard]] double progress() const { return m_progress;}
+    void progress(double p) { m_progress = p; }
+
+    [[nodiscard]] int x() const { return m_x; }
+    void x(const int x) { m_x = x; }
+
+    [[nodiscard]] int y() const { return m_y; }
+    void y(const int y) { m_y = y; }
+
+    [[nodiscard]] double time() const { return m_time; }
+    void add_time(double t) { m_time += t; }
+
+protected:
+    int m_x = 0;
+    int m_y = 0;
+    bool m_scanline_finished = false;
+    double m_progress = 0.0;
+
+    double m_time = 0.0;
+
+    render_state_t m_state = render_state_t::inactive;
 };
 
 struct app_state {
@@ -181,7 +148,23 @@ struct app_state {
         const shared_ptr<streaming_image_texture_t>& screen, 
         SDL_Renderer* renderer, 
         SDL_Window* window)
-        : renderer(renderer), window(window), screen(screen), cfg(std::move(config)), status(screen) {}
+        : renderer(renderer), window(window), screen(screen), cfg(std::move(config)) {
+#ifndef THREADS
+        render_status = make_unique<iterative_render_state_t>(render_state_t::inactive);
+#else 
+        render_status = make_unique<threaded_render_state_t>();
+#endif
+    }
+
+    void handle_resize() {
+        int window_width, window_height;
+        SDL_GetWindowSize(window, &window_width, &window_height);
+        int scaled_width = static_cast<int>(static_cast<double>(window_width) / pow(2, cfg.scale-1));
+        int scaled_height = static_cast<int>(static_cast<double>(window_height) / pow(2, cfg.scale-1));
+
+        cfg.scn.cam.resize(scaled_width, scaled_height);
+        screen->resize(scaled_width, scaled_height);
+    }
 
     SDL_Renderer* renderer;
     SDL_Window* window;
@@ -189,8 +172,16 @@ struct app_state {
     shared_ptr<streaming_image_texture_t> screen;
 
     render_config cfg;
-    render_status status;
+
+#ifndef THREADS
+    unique_ptr<iterative_render_state_t> render_status;
+#else
+    unique_ptr<threaded_render_state_t> render_status;
+#endif
     
+#ifdef THREADS
+    std::vector<std::thread> render_threads;
+#endif
 };
 
 
@@ -198,54 +189,63 @@ struct app_state {
 // window loop (so things stay responsive). Also lets you see
 // the image as it renders instead of just the final result.
 // returns the time taken in nanoseconds
-int64_t next_pixel(const render_config& cfg, render_status& cs) {
-
-    if(cs.done) {
+int64_t next_pixel(app_state& state) {
+    if(state.render_status->state() != render_state_t::rendering) {
         return 0;
     }
 
     const auto start = std::chrono::system_clock::now();
 
-    const auto& scn = cfg.scn;
+    const auto& cfg = state.cfg;
+    const auto& scn = state.cfg.scn;
     const auto& cam = scn.cam;
+    auto& cs = state.render_status;
     
     color pixel_color;
     
     for(int s = 0; s<cfg.samples_per_pixel; s++) {
-        double u = (cs.x+random_double()) / static_cast<double>(cam.width()-1);
-        double v = (cs.y+random_double()) / static_cast<double>(cam.height()-1);
+        double u = (cs->x()+random_double()) / static_cast<double>(cam.width()-1);
+        double v = (cs->y()+random_double()) / static_cast<double>(cam.height()-1);
         ray r = scn.cam.get_ray(u, v);
         pixel_color += ray_color(r, scn.entities, 0, cfg.max_bounces);
     }
 
-    cs.screen->image()->write(cs.x, (cam.height()-1)-cs.y, pixel_color, cfg.samples_per_pixel);
+    state.screen->image()->write(cs->x(), (cam.height()-1)-cs->y(), pixel_color, cfg.samples_per_pixel);
 
-    cs.x++;
-    if(cs.x >= cam.width()) {
-        cs.x = 0;
-        cs.y++;
-        cs.scanline_finished = true;
+    cs->x(cs->x()+1);
+
+    if(cs->x() >= cam.width()) {
+        cs->x(0);
+        cs->y(cs->y()+1);
+        cs->mark_scanline_finished();
     }
 
-    if(cs.y >= cam.height()) {
-        cs.done = true;
+    cs->progress(static_cast<double>(cs->x() + cs->y() * state.screen->width()) / static_cast<double>(state.screen->width()*state.screen->height()));
+
+    if(cs->y() >= cam.height()) {
+        cs->finish();
+        cs->progress(1.0);
     }
 
     const auto finish = std::chrono::system_clock::now();
-    return std::chrono::duration_cast<std::chrono::nanoseconds>(finish - start).count();
+    const auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(finish - start).count();
+    cs->add_time(ns);
+    return ns;
 }
 
 #ifdef THREADS
-void render_thread(const render_config& config, const shared_ptr<streaming_image_texture_t>& screen, int base, int offset) {
+void render_thread(const app_state& state, int base, int offset) {
     std::stringstream msg;
     msg << "starting thread, base: " << base << ", offset: " << offset << std::endl;
     std::cout << msg.str();
 
+    const auto& config = state.cfg;
+    
     SDL_Delay(static_cast<int>(random_double(0, 250))); // stagger the thread timing a bit so they're not writing to the buffer all at the same time
 
     const auto& scn = config.scn;
     const auto& cam = scn.cam;
-    auto scanline = std::make_unique<color[]>(screen->width());
+    auto scanline = std::make_unique<color[]>(state.screen->width());
 
     for(int y = base; y < cam.height(); y += offset) {
         for(int x = 0; x < cam.width(); x++) {
@@ -263,7 +263,7 @@ void render_thread(const render_config& config, const shared_ptr<streaming_image
                 return;
             }
         }
-        screen->image()->write_line_sync((cam.height()-1) - y, scanline.get(), config.samples_per_pixel);
+        state.screen->image()->write_line_sync((cam.height()-1) - y, scanline.get(), config.samples_per_pixel);
         ++g_dirty;
 
         if(g_quit_program) {
@@ -274,24 +274,30 @@ void render_thread(const render_config& config, const shared_ptr<streaming_image
 #endif
 
 void loop_fn(void* arg) {
-    const auto context = static_cast<app_state*>(arg); 
-    SDL_SetRenderDrawColor(context->renderer, 255, 255, 255, 255);
+    const auto state = static_cast<app_state*>(arg); 
+    SDL_SetRenderDrawColor(state->renderer, 255, 255, 255, 255);
 
 #ifndef THREADS
+
     // iterative solution
     uint64_t time_spent_rendering = 0;
-    constexpr uint64_t rendering_budget = 30 * 1000000; // 30 milliseconds (so we get ~30 fps for UI)
-    while(!context->status.done && time_spent_rendering<rendering_budget) {
-        time_spent_rendering += next_pixel(context->cfg, context->status);
+
+    // 30 milliseconds (so we get ~30 fps for UI, assuming that the gui
+    // rendering and texture copying take less than 2 ms)
+    constexpr uint64_t rendering_budget = 30 * 1000000; 
+
+    while(state->render_status->state() == render_state_t::rendering && time_spent_rendering<rendering_budget) {
+        time_spent_rendering += next_pixel(*state);
     }
 
-    if(context->status.scanline_finished) {
-        context->status.scanline_finished = false;
-        context->screen->update_texture_sync();
+    if(state->render_status->is_scanline_finished()) {
+        state->render_status->clear_scanline_flag();
+        state->screen->update_texture_sync();
     }
+
 #else
     if(g_dirty) {
-        context->screen->update_texture_sync();
+        state->screen->update_texture_sync();
         g_dirty = 0;
     }
 #endif
@@ -305,9 +311,26 @@ void loop_fn(void* arg) {
             g_quit_program = true;
         }
 
+        if (event.type == SDL_WINDOWEVENT &&
+            event.window.event == SDL_WINDOWEVENT_RESIZED) {
+            int w_width, w_height;
+            SDL_GetWindowSize(state->window, &w_width, &w_height);
+
+            if(state->render_status->state() != render_state_t::rendering) {
+                state->handle_resize();
+                state->screen->update_texture_sync();
+            }
+
+            if(state->render_status->state() == render_state_t::inactive) {
+                render_test_pattern(*state->screen->image());
+                state->screen->update_texture_sync();
+            }
+            
+        }
+
         if (event.type == SDL_WINDOWEVENT 
             && event.window.event == SDL_WINDOWEVENT_CLOSE 
-            && event.window.windowID == SDL_GetWindowID(context->window)) {
+            && event.window.windowID == SDL_GetWindowID(state->window)) {
             g_quit_program = true;
         }
 
@@ -319,37 +342,89 @@ void loop_fn(void* arg) {
     ImGui::NewFrame();
 
     {
-        static ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
-        static bool show_demo_window=false;
-        static bool show_another_window=false;
-        static float f = 0.0f;
-        static int counter = 0;
-
         ImGui::Begin("Ray Tracer");
 
-        ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
-        ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
-        ImGui::Checkbox("Another Window", &show_another_window);
+        ImGui::BeginDisabled(state->render_status->state() == render_state_t::rendering);
 
-        ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
-        ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
-
-        if (ImGui::Button("Render"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
-            counter++;
-        ImGui::SameLine();
-        if (ImGui::Button("Cancel")) {
-            std::cout << "cancelled" << std::endl;
+        static int current_scene = 0;
+        const char* scenes[] {"Random Spheres", "Test Scene"};
+        if(ImGui::Combo("Scene", &current_scene, scenes, 2)) {
+            if(current_scene == 0) {
+                state->cfg.scn = random_scene(state->screen->width(), state->screen->height());
+            } else {
+                state->cfg.scn = test_scene(state->screen->width(), state->screen->height());
+            }
+            
         }
 
+        ImGui::EndDisabled();
+
+        int w_width, w_height;
+        SDL_GetWindowSize(state->window, &w_width, &w_height);
+        ImGui::Text("Window Dimensions %d x %d", w_width, w_height);
+        ImGui::Text("Render Dimensions %d x %d", state->screen->width(), state->screen->height());
+
         ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+
+#ifdef THREADS
+        ImGui::SliderInt("Threads", &state->cfg.num_threads, 1, static_cast<int>(processor_count));
+#endif
+
+        if(ImGui::SliderInt("Scale", &state->cfg.scale, 1, 4)) {
+            state->render_status = make_unique<iterative_render_state_t>(render_state_t::inactive);
+            state->handle_resize();
+            render_test_pattern(*state->screen->image());
+            state->screen->update_texture_sync();
+        }
+
+        ImGui::SliderInt("Bounces", &state->cfg.max_bounces, 1, 200);
+        ImGui::SliderInt("Samples Per Pixel", &state->cfg.samples_per_pixel, 1, 200);
+
+        if(state->render_status->state() != render_state_t::inactive) {
+            ImGui::Text("State: %s, Time: %ds", render_state_to_string(state->render_status->state()).c_str(), static_cast<int>((state->render_status->time() / 1000000.0) / 1000.0));
+
+            ImGui::PushStyleColor(ImGuiCol_Header, {1.0, 0.0, 0.0, 1.0});
+            ImGui::ProgressBar(state->render_status->progress());
+            ImGui::PopStyleColor();
+        }
+
+        if (ImGui::Button("Render")) {
+            std::cout << "start render" << std::endl;
+            render_test_pattern(*state->screen->image());
+            state->render_status = make_unique<iterative_render_state_t>(render_state_t::rendering);
+        } 
+
+        
+        ImGui::SameLine();
+
+        ImGui::BeginDisabled(state->render_status->state() != render_state_t::rendering);
+
+        if (ImGui::Button("Cancel")) {
+            state->render_status->cancel();
+        }
+
+        ImGui::EndDisabled();
+
+        ImGui::SameLine();
+
+        ImGui::BeginDisabled(state->render_status->state() == render_state_t::inactive);
+        if (ImGui::Button("Reset")) {
+            state->render_status = make_unique<iterative_render_state_t>(render_state_t::inactive);
+            state->handle_resize();
+            render_test_pattern(*state->screen->image());
+            state->screen->update_texture_sync();
+        }
+        ImGui::EndDisabled();
+
+        
         ImGui::End();
     }
 
     ImGui::Render();
 
-    context->screen->present();
+    state->screen->present();
     ImGui_ImplSDLRenderer_RenderDrawData(ImGui::GetDrawData());
-    SDL_RenderPresent(context->renderer);
+    SDL_RenderPresent(state->renderer);
 }
 
 // This is the naieve/simple ray trace (not iterative or threaded, so blocks the interface)
@@ -376,6 +451,12 @@ int main(int argc, char* argv[])
     constexpr int default_image_width = 480*2;
     constexpr int default_image_height = 270*2;
     constexpr int default_samples_per_pixel = 75;
+    // default to two threads if we can't detect the processor count, otherwise use
+    // 3/4ths of the processors (we want to leave a few open so the OS is responsive)
+    int default_thread_count = static_cast<int>(processor_count*0.75);
+    if(default_thread_count <= 1) {
+        default_thread_count = 2;
+    }
         
     
     SDL_Init(SDL_INIT_VIDEO);
@@ -391,7 +472,7 @@ int main(int argc, char* argv[])
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC);
 
     {
-        render_config config(random_scene(default_image_width, default_image_height), default_samples_per_pixel);
+        render_config config(random_scene(default_image_width, default_image_height), default_samples_per_pixel, default_thread_count);
         auto screen = make_shared<streaming_image_texture_t>(renderer, default_image_width, default_image_height);
 
         // draw the test pattern so we don't have a black screen (also sanity
@@ -423,17 +504,12 @@ int main(int argc, char* argv[])
         app_state state(config, screen, renderer, window);
 
     #ifdef THREADS
-        // default to two threads if we can't detect the processor count, otherwise use
-        // 3/4ths of the processors (we want to leave a few open so the OS is responsive)
-        int pcount = static_cast<int>(processor_count*0.75);
-        if(pcount <= 1) {
-            pcount = 2;
-        }
-        std::cout << "processor count " << pcount << std::endl;
+        
+        std::cout << "processor count " << default_thread_count << std::endl;
         std::vector<std::thread> threads;
 
-        for(int i=0; i<pcount; i++) {
-            auto& t = threads.emplace_back(&render_thread, config, screen, i, pcount);
+        for(int i=0; i<default_thread_count; i++) {
+            auto& t = threads.emplace_back(&render_thread, config, screen, i, default_thread_count);
         }
 
     #endif

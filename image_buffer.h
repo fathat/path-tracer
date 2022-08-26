@@ -19,8 +19,12 @@ public:
     image_buffer_t() = delete;
 
     image_buffer_t(const uint32_t width, const uint32_t height);
+    image_buffer_t(const image_buffer_t& src);
 
     void write(const uint32_t x, const uint32_t y, const color& color, int samples_per_pixel=1);
+
+    void write_raw(const uint32_t x, const uint32_t y, const color& color);
+    color read(const double x, const double y) const;
 
 #ifdef THREADS
     void write_line_sync(const uint32_t y, const color data[], int samples_per_pixel);

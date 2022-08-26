@@ -9,7 +9,7 @@
 #include <glm/gtx/norm.hpp>
 
 #ifndef EMSCRIPTEN
-#define THREADS
+//#define THREADS
 #endif
 
 inline double random_double() {
@@ -39,10 +39,10 @@ using std::sqrt;
 using glm::length2;
 
 const double infinity = std::numeric_limits<double>::infinity();
-constexpr double pi = 3.1415926535897932385;
+constexpr double g_pi = 3.1415926535897932385;
 
 inline double degrees_to_radians(const double degrees) {
-    constexpr double pi_over_180 = pi / 180.0;
+    constexpr double pi_over_180 = g_pi / 180.0;
     return degrees * pi_over_180;
 }
 

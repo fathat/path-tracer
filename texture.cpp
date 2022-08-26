@@ -47,11 +47,22 @@ void streaming_image_texture_t::present() {
 }
 
 void streaming_image_texture_t::resize(int width, int height) {
+
+    const image_buffer_t old_data(*m_buffer);
+
     m_width = width;
     m_height = height;
     SDL_DestroyTexture(m_texture);
     m_buffer = make_unique<image_buffer_t>(width, height);
 
+    for(int iy = 0; iy < height; iy++) {
+        for(int ix = 0; ix < width; ix ++) {
+            double x = static_cast<double>(ix) / width;
+            double y = static_cast<double>(iy) / height;
+            m_buffer->write_raw(ix, iy, old_data.read(x, y));
+        }    
+    }
+    
     m_texture = SDL_CreateTexture(
         m_renderer, 
         SDL_PIXELFORMAT_RGBA8888, 
