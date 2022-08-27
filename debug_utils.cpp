@@ -2,7 +2,7 @@
 #include "types.h"
 #include "debug_utils.h"
 
-void render_test_pattern(image_buffer_t& buffer) {
+void render_gradient_pattern(image_buffer_t& buffer) {
 #ifdef THREADS
     std::lock_guard guard(*buffer.mutex());
 #endif

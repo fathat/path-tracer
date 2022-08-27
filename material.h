@@ -2,50 +2,50 @@
 #include "types.h"
 #include "color.h"
 
-class ray;
-struct hit_record;
+class ray_t;
+struct hit_record_t;
 
-class material {
+class material_t {
 public:
-    virtual ~material() = default;
+    virtual ~material_t() = default;
     virtual bool scatter(
-            const ray& r_in, const hit_record& rec, color& attenuation, ray& scattered
+            const ray_t& r_in, const hit_record_t& rec, color_t& attenuation, ray_t& scattered
         ) const = 0;
 };
 
-class lambertian : public material {
+class lambertian_material_t : public material_t {
 public:
-    explicit lambertian(const color& a) : m_albedo(a) {}
+    explicit lambertian_material_t(const color_t& a) : m_albedo(a) {}
 
     bool scatter(
-        const ray& r_in, const hit_record& rec, color& attenuation, ray& scattered
+        const ray_t& r_in, const hit_record_t& rec, color_t& attenuation, ray_t& scattered
     ) const override;
 
-    [[nodiscard]] color albedo() const { return m_albedo; }
+    [[nodiscard]] color_t albedo() const { return m_albedo; }
 protected:
-    color m_albedo;
+    color_t m_albedo;
 };
 
-class metal : public material {
+class metal_material_t : public material_t {
 public:
-    explicit metal(const color& albedo, const double fuzz) : m_albedo(albedo), m_fuzz(fuzz < 1 ? fuzz : 1) {}
+    explicit metal_material_t(const color_t& albedo, const double fuzz) : m_albedo(albedo), m_fuzz(fuzz < 1 ? fuzz : 1) {}
 
     bool scatter(
-        const ray& r_in, const hit_record& rec, color& attenuation, ray& scattered
+        const ray_t& r_in, const hit_record_t& rec, color_t& attenuation, ray_t& scattered
     ) const override;
 
-    [[nodiscard]] color albedo() const { return m_albedo; }
+    [[nodiscard]] color_t albedo() const { return m_albedo; }
 protected:
-    color m_albedo;
+    color_t m_albedo;
     double m_fuzz;
 };
 
-class dielectric : public material {
+class dielectric_material_t : public material_t {
 public:
-    dielectric(double index_of_refraction) : m_index_of_refraction(index_of_refraction) {}
+    dielectric_material_t(double index_of_refraction) : m_index_of_refraction(index_of_refraction) {}
 
     bool scatter(
-        const ray& r_in, const hit_record& rec, color& attenuation, ray& scattered
+        const ray_t& r_in, const hit_record_t& rec, color_t& attenuation, ray_t& scattered
     ) const override;
 
 protected:

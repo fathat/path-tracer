@@ -52,23 +52,23 @@ bool g_quit_program = false;
  * \param max_bounces The maximum number of bounces allowed
  * \return A color
  */
-color ray_color(const ray& r, const hittable& world, const int stack_depth, const int max_bounces) {
-    hit_record rec{};
-
+color_t ray_color(const ray_t& r, const hittable_t& world, const int stack_depth, const int max_bounces) {
+    hit_record_t rec{};
+    
     if(stack_depth > max_bounces) {
         return {0, 0, 0, 1};
     }
 
     if (world.hit(r, 0.001, infinity, rec)) {
-        ray scattered;
-        color attenuation;
+        ray_t scattered;
+        color_t attenuation;
         if (rec.mat->scatter(r, rec, attenuation, scattered))
             return attenuation * ray_color(scattered, world, stack_depth+1, max_bounces);
         return {0,0,0};
     }
-    const vec3_d unit_direction = normalize(r.direction());
+    const dvec3_t unit_direction = normalize(r.direction());
     auto t = 0.5*(unit_direction.y + 1.0);
-    return (1.0-t)*color(1.0, 1.0, 1.0) + t * color(0.5, 0.7, 1.0);
+    return (1.0-t)*color_t(1.0, 1.0, 1.0) + t * color_t(0.5, 0.7, 1.0);
 }
 
 
@@ -91,7 +91,7 @@ struct render_config {
     int samples_per_pixel;
 
     /**
-     * the maximum number of bounces a ray can go through. Note that this is limited
+     * the maximum number of bounces a ray_t can go through. Note that this is limited
      * by the stack size since the ray_color function is recursive. 
      */
     int max_bounces;
@@ -292,12 +292,12 @@ int64_t next_pixel(app_state_t& state) {
     const auto& cam = scn.cam;
     auto& cs = state.render_status;
     
-    color pixel_color;
+    color_t pixel_color;
     
     for(int s = 0; s<cfg.samples_per_pixel; s++) {
         double u = (cs->x()+random_double()) / static_cast<double>(cam.width()-1);
         double v = (cs->y()+random_double()) / static_cast<double>(cam.height()-1);
-        ray r = scn.cam.get_ray(u, v);
+        ray_t r = scn.cam.get_ray(u, v);
         pixel_color += ray_color(r, scn.entities, 0, cfg.max_bounces);
     }
 
@@ -342,7 +342,7 @@ void render_thread(app_state_t* state, int base, int offset) {
 
     const auto& scn = config.scn;
     const auto& cam = scn.cam;
-    auto scanline = std::make_unique<color[]>(state->screen->width());
+    auto scanline = std::make_unique<color_t[]>(state->screen->width());
 
     bool done = false;
 
@@ -363,12 +363,12 @@ void render_thread(app_state_t* state, int base, int offset) {
         }
 
         for(int x = 0; x < cam.width(); x++) {
-            color pixel_color;
+            color_t pixel_color;
     
             for(int s = 0; s<config.samples_per_pixel; s++) {
                 const double u = (x+random_double()) / static_cast<double>(cam.width()-1);
                 const double v = (y+random_double()) / static_cast<double>(cam.height()-1);
-                ray r = scn.cam.get_ray(u, v);
+                ray_t r = scn.cam.get_ray(u, v);
                 pixel_color += ray_color(r, scn.entities, 0, config.max_bounces);
             }
             scanline[x] = pixel_color;
@@ -465,7 +465,7 @@ void loop_fn(void* arg) {
             }
 
             if(state->render_status->state() == render_state_t::inactive) {
-                render_test_pattern(*state->screen->image());
+                render_gradient_pattern(*state->screen->image());
                 state->screen->update_texture_sync();
             }
             
@@ -524,7 +524,7 @@ void loop_fn(void* arg) {
         if(ImGui::SliderInt("Pixel Scale", &state->cfg.scale, 1, 4)) {
             state->render_status = make_unique<render_status_t>(render_state_t::inactive);
             state->handle_resize();
-            render_test_pattern(*state->screen->image());
+            render_gradient_pattern(*state->screen->image());
             state->screen->update_texture_sync();
         }
         ImGui::SameLine();
@@ -557,7 +557,7 @@ void loop_fn(void* arg) {
         ImGui::BeginDisabled(state->render_status->state() == render_state_t::rendering);
         if (ImGui::Button("Render")) {
             std::cout << "start render" << std::endl;
-            render_test_pattern(*state->screen->image());
+            render_gradient_pattern(*state->screen->image());
             state->render_status = make_unique<render_status_t>(render_state_t::rendering);
 
 #ifdef THREADS
@@ -596,7 +596,7 @@ void loop_fn(void* arg) {
             state->render_status->cancel();
             state->render_status = make_unique<render_status_t>(render_state_t::inactive);
             state->handle_resize();
-            render_test_pattern(*state->screen->image());
+            render_gradient_pattern(*state->screen->image());
             state->screen->update_texture_sync();
         }
         ImGui::EndDisabled();
@@ -626,12 +626,12 @@ void raytrace_all_linear(const render_config& config, const shared_ptr<image_buf
     for(int y = screen->height()-1; y>=0; --y) {
         std::cout << "\rScanlines remaining: " << (screen->height()-1) - y << std::endl;
         for(int x = screen->width()-1; x>=0; --x) {
-            color pixel_color;
+            color_t pixel_color;
 
             for(int s = 0; s<config.samples_per_pixel; s++) {
                 double u = (x+random_double()) / static_cast<double>(screen->width()-1);
                 double v = (y+random_double()) / static_cast<double>(screen->height()-1);
-                ray r = config.scn.cam.get_ray(u, v);
+                ray_t r = config.scn.cam.get_ray(u, v);
                 pixel_color += ray_color(r, config.scn.entities, 0, config.max_bounces);
             }
 
@@ -671,7 +671,7 @@ int main(int argc, char* argv[])
 
         // draw the test pattern so we don't have a black screen (also sanity
         // checks that our texture is ok)
-        render_test_pattern(*screen->image());
+        render_gradient_pattern(*screen->image());
         SDL_SetRenderDrawColor(renderer, 0, 20, 80, SDL_ALPHA_OPAQUE);
         SDL_RenderClear(renderer);
         screen->update_texture_sync();

@@ -3,12 +3,12 @@
 using glm::normalize;
 using glm::cross;
 
-camera::camera(const int width, const int height, double vfov, point3 look_from, point3 look_at, vec3_d up, double aperture, double focus_dist):
+camera_t::camera_t(const int width, const int height, double vfov, point3 look_from, point3 look_at, dvec3_t up, double aperture, double focus_dist):
     m_width(width), m_height(height), m_vfov(vfov) {
     update(width, height, vfov, look_from, look_at, up, aperture, focus_dist);
 }
 
-void camera::update(const int width, const int height, double vfov, point3 look_from, point3 look_at, vec3_d up,
+void camera_t::update(const int width, const int height, double vfov, point3 look_from, point3 look_at, dvec3_t up,
     double aperture, double focus_dist) {
     const auto theta = degrees_to_radians(m_vfov);
     auto htan = tan(theta/2);
@@ -35,18 +35,18 @@ void camera::update(const int width, const int height, double vfov, point3 look_
     m_lens_radius = aperture / 2.0;    
 }
 
-ray camera::get_ray(double s, double t) const {
-    //return ray(m_origin, m_lower_left_corner + s*m_horizontal + t*m_vertical - m_origin);
-    const vec3_d rd = m_lens_radius * random_in_unit_disk();
-    const vec3_d offset = m_u * rd.x + m_v * rd.y;
+ray_t camera_t::get_ray(double s, double t) const {
+    //return ray_t(m_origin, m_lower_left_corner + s*m_horizontal + t*m_vertical - m_origin);
+    const dvec3_t rd = m_lens_radius * random_in_unit_disk();
+    const dvec3_t offset = m_u * rd.x + m_v * rd.y;
 
-    return ray(
+    return ray_t(
         m_origin + offset,
         m_lower_left_corner + s*m_horizontal + t*m_vertical - m_origin - offset
     );
 }
 
-void camera::resize(int width, int height) {
+void camera_t::resize(int width, int height) {
     m_width = width;
     m_height = height;
     update(width, height, m_vfov, m_origin, m_look_at, m_vup, m_aperture, m_focus_dist);

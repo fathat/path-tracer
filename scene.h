@@ -5,10 +5,10 @@
 #include "sphere.h"
 
 struct scene_t {
-    scene_t(const camera& camera): cam(camera) {}
-    scene_t(const camera& camera, const hittable_list_t& ents): entities(ents), cam(camera) {}
+    scene_t(const camera_t& camera): cam(camera) {}
+    scene_t(const camera_t& camera, const hittable_list_t& ents): entities(ents), cam(camera) {}
     hittable_list_t entities;
-    camera cam;
+    camera_t cam;
 };
 
 

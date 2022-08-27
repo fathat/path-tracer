@@ -3,8 +3,8 @@
 
 using namespace glm;
 
-bool sphere::hit(const ray& r, double t_min, double t_max, hit_record& rec) const {
-    const vec3_d oc = r.origin() - center;
+bool sphere_t::hit(const ray_t& r, double t_min, double t_max, hit_record_t& rec) const {
+    const dvec3_t oc = r.origin() - center;
     const auto a = length2(r.direction());
     const auto half_b = dot(oc, r.direction());
     const auto c = length2(oc) - radius*radius;
@@ -23,7 +23,7 @@ bool sphere::hit(const ray& r, double t_min, double t_max, hit_record& rec) cons
 
     rec.t = root;
     rec.p = r.at(rec.t);
-    const vec3_d outward_normal = (rec.p - center) / radius;
+    const dvec3_t outward_normal = (rec.p - center) / radius;
     rec.set_face_normal(r, outward_normal);
     rec.mat = mat;
 
