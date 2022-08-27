@@ -255,7 +255,10 @@ struct app_state_t {
 
         cfg.scn.cam.resize(scaled_width, scaled_height);
         screen->resize(scaled_width, scaled_height);
+
+#ifdef THREADS
         render_status->set_total_pixels(scaled_width * scaled_height);
+#endif
     }
 
     SDL_Renderer* renderer;
@@ -317,7 +320,7 @@ int64_t next_pixel(app_state_t& state) {
 
     const auto finish = std::chrono::system_clock::now();
     const auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(finish - start).count();
-    cs->add_time_ns(ns);
+    cs->add_time_ns(static_cast<double>(ns));
     return ns;
 }
 #endif
@@ -556,6 +559,8 @@ void loop_fn(void* arg) {
             std::cout << "start render" << std::endl;
             render_test_pattern(*state->screen->image());
             state->render_status = make_unique<render_status_t>(render_state_t::rendering);
+
+#ifdef THREADS
             state->render_status->set_total_pixels(state->screen->width() * state->screen->height());
 
             bool can_interlace = state->cfg.num_threads % 2 == 0 && state->screen->height() % 2 == 0;
@@ -570,6 +575,7 @@ void loop_fn(void* arg) {
                     state->render_status->m_render_threads.emplace_back(&render_thread, state, state->screen->height()-i, -num_threads);
                 }
             }
+#endif
         } 
         ImGui::EndDisabled();
         
@@ -605,12 +611,14 @@ void loop_fn(void* arg) {
     ImGui_ImplSDLRenderer_RenderDrawData(ImGui::GetDrawData());
     SDL_RenderPresent(state->renderer);
 
+#ifdef THREADS
     const auto finish = std::chrono::system_clock::now();
 
     if(state->render_status->state() == render_state_t::rendering) {
         const auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(finish - start).count();
         state->render_status->add_time_ns(static_cast<double>(ns));
     }
+#endif
 }
 
 // This is the naieve/simple ray trace (not iterative or threaded, so blocks the interface)
