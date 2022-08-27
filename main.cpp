@@ -37,7 +37,9 @@ constexpr int default_max_bounces = 50;
 
 #ifdef THREADS
 std::atomic_bool g_quit_program = false;
-const auto processor_count = std::thread::hardware_concurrency();
+
+// get processor count. hardware_concurrency can return 0 though, so if it does, just assume 4 processors
+const auto processor_count = std::thread::hardware_concurrency() > 0 ? std::thread::hardware_concurrency() : 4;
 #else
 const auto processor_count = 1;
 bool g_quit_program = false;
