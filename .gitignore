@@ -13,3 +13,4 @@ bin/
 *.ninja
 .ninja_deps
 .ninja_log
+*.a

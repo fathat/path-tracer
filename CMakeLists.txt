@@ -75,28 +75,31 @@ else()
 target_link_libraries(PathTracer ${SDL2_LIBRARIES} raytracelib)
 endif()
 
-# googletest stuff
-include(FetchContent)
-FetchContent_Declare(
-  googletest
-  GIT_REPOSITORY https://github.com/google/googletest.git
-  GIT_TAG release-1.12.1
-)
-# For Windows: Prevent overriding the parent project's compiler/linker settings
-set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(googletest)
+if (NOT EMSCRIPTEN)
 
-enable_testing()
+    # googletest stuff
+    include(FetchContent)
+    FetchContent_Declare(
+    googletest
+    GIT_REPOSITORY https://github.com/google/googletest.git
+    GIT_TAG release-1.12.1
+    )
+    # For Windows: Prevent overriding the parent project's compiler/linker settings
+    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(googletest)
 
-add_executable(
-  test_raytracelib
-  test_raytracelib.cpp
-)
-target_link_libraries(
-  test_raytracelib
-  GTest::gtest_main
-  raytracelib
-)
+    enable_testing()
 
-include(GoogleTest)
-gtest_discover_tests(test_raytracelib)
+    add_executable(
+    test_raytracelib
+    test_raytracelib.cpp
+    )
+    target_link_libraries(
+    test_raytracelib
+    GTest::gtest_main
+    raytracelib
+    )
+
+    include(GoogleTest)
+    gtest_discover_tests(test_raytracelib)
+endif()

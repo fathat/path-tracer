@@ -1,0 +1,1 @@
+emcmake cmake -S . -B build_emscripten
