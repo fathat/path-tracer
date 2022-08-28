@@ -21,4 +21,6 @@ add_library(raytracelib
     material.cpp
     scene.h
     scene.cpp
+    raytrace.h
+    raytrace.cpp
 )
