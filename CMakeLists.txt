@@ -46,31 +46,13 @@ include_directories(${IMGUI_DIR})
 
 include_directories("${CMAKE_CURRENT_LIST_DIR}/3rdParty")
 
+add_subdirectory(raytracelib)
+
 # add the executable
 add_executable(PathTracer 
     main.cpp 
-    color.h 
-    ray.h 
-    types.h
-    types.cpp
-    image_buffer.h
-    image_buffer.cpp
-    debug_utils.h
-    debug_utils.cpp
-    hittable.h
-    hittable.cpp
-    sphere.h
-    sphere.cpp
-    hittable_list.h
-    hittable_list.cpp
-    camera.h
-    camera.cpp
-    material.h
-    material.cpp
     texture.h
     texture.cpp
-    scene.h
-    scene.cpp
     3rdParty/imgui/imconfig.h
     3rdParty/imgui/imgui_draw.cpp
     3rdParty/imgui/imgui_impl_sdl.cpp
@@ -88,7 +70,33 @@ add_executable(PathTracer
     )
 
 if (APPLE)
-target_link_libraries(PathTracer PRIVATE SDL2::SDL2)
+target_link_libraries(PathTracer PRIVATE SDL2::SDL2 raytracelib)
 else()
-target_link_libraries(PathTracer ${SDL2_LIBRARIES})
+target_link_libraries(PathTracer ${SDL2_LIBRARIES} raytracelib)
 endif()
+
+# googletest stuff
+include(FetchContent)
+FetchContent_Declare(
+  googletest
+  GIT_REPOSITORY https://github.com/google/googletest.git
+  GIT_TAG release-1.12.1
+)
+# For Windows: Prevent overriding the parent project's compiler/linker settings
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(googletest)
+
+enable_testing()
+
+add_executable(
+  test_raytracelib
+  test_raytracelib.cpp
+)
+target_link_libraries(
+  test_raytracelib
+  GTest::gtest_main
+  raytracelib
+)
+
+include(GoogleTest)
+gtest_discover_tests(test_raytracelib)

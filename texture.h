@@ -1,9 +1,9 @@
 #pragma once
 
-#include "types.h"
+#include "raytracelib/types.h"
 #include <SDL.h>
 #include <SDL_render.h>
-#include "image_buffer.h"
+#include "raytracelib/image_buffer.h"
 
 class streaming_image_texture_t {
 public:

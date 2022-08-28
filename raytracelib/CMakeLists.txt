@@ -1,0 +1,24 @@
+include_directories("${CMAKE_CURRENT_LIST_DIR}/../3rdParty/")
+
+add_library(raytracelib 
+    color.h 
+    ray.h 
+    types.h
+    types.cpp
+    image_buffer.h
+    image_buffer.cpp
+    debug_utils.h
+    debug_utils.cpp
+    hittable.h
+    hittable.cpp
+    sphere.h
+    sphere.cpp
+    hittable_list.h
+    hittable_list.cpp
+    camera.h
+    camera.cpp
+    material.h
+    material.cpp
+    scene.h
+    scene.cpp
+)
