@@ -77,8 +77,8 @@ color_t ray_color(const ray_t& r, const hittable_t& world, const int stack_depth
 /**
  * \brief Stores general configuration information for the render
  */
-struct render_config {
-    render_config(scene_t scene, int default_samples_per_pixel, int default_num_threads):
+struct render_config_t {
+    render_config_t(scene_t scene, int default_samples_per_pixel, int default_num_threads):
         num_threads(default_num_threads), samples_per_pixel(default_samples_per_pixel),
         max_bounces(default_max_bounces),
         scn(std::move(scene)) {}
@@ -101,7 +101,7 @@ struct render_config {
     /**
      * \brief The scaling factor for pixels.
      *  1 = window dimensions,
-     *  2 = window dimenions / 2,
+     *  2 = window dimensions / 2,
      *  3 = window dimensions / (2*2),
      *  4 = window dimensions / (2*2*2), 
      */
@@ -121,7 +121,7 @@ enum class render_state_t {
 /**
  * \brief converts a render_state_t to a string;
  * \param state the state enumeration value
- * \return 
+ * \return stringified render_state_t
  */
 std::string render_state_to_string(const render_state_t state) {
     switch(state) {
@@ -237,7 +237,7 @@ typedef iterative_render_state_t render_status_t;
  */
 struct app_state_t {
     app_state_t(
-        render_config config, 
+        render_config_t config, 
         const shared_ptr<streaming_image_texture_t>& screen, 
         SDL_Renderer* renderer, 
         SDL_Window* window)
@@ -268,7 +268,7 @@ struct app_state_t {
 
     shared_ptr<streaming_image_texture_t> screen;
 
-    render_config cfg;
+    render_config_t cfg;
 
     unique_ptr<render_status_t> render_status;
 };
@@ -397,7 +397,6 @@ void render_thread(app_state_t* state, int base, int offset) {
 #endif
 
 // Helper to display a little (?) mark which shows a tooltip when hovered.
-// In your own code you may want to display an actual icon if you are using a merged icon fonts (see docs/FONTS.md)
 static void help_marker(const char* desc)
 {
     ImGui::TextDisabled("(?)");
@@ -624,7 +623,7 @@ void loop_fn(void* arg) {
 }
 
 // This is the naieve/simple ray trace (not iterative or threaded, so blocks the interface)
-void raytrace_all_linear(const render_config& config, const shared_ptr<image_buffer_t>& screen) {
+void raytrace_all_linear(const render_config_t& config, const shared_ptr<image_buffer_t>& screen) {
     for(int y = screen->height()-1; y>=0; --y) {
         std::cout << "\rScanlines remaining: " << (screen->height()-1) - y << std::endl;
         for(int x = screen->width()-1; x>=0; --x) {
@@ -668,7 +667,7 @@ int main(int argc, char* argv[])
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC);
 
     {
-        render_config config(random_scene(default_image_width, default_image_height), default_samples_per_pixel, default_thread_count);
+        render_config_t config(random_scene(default_image_width, default_image_height), default_samples_per_pixel, default_thread_count);
         auto screen = make_shared<streaming_image_texture_t>(renderer, default_image_width, default_image_height);
 
         // draw the test pattern so we don't have a black screen (also sanity
