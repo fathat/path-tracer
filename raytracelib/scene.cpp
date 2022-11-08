@@ -16,7 +16,10 @@ scene_t random_scene(int image_width, int image_height) {
         look_at, 
         vup,
         aperture,
-        dist_to_focus);
+        dist_to_focus,
+        0.0,
+        1.0
+        );
 
     scene_t scene {cam};
 
@@ -35,7 +38,8 @@ scene_t random_scene(int image_width, int image_height) {
                     // diffuse
                     auto albedo = color_t::random() * color_t::random();
                     sphere_material = make_shared<lambertian_material_t>(albedo);
-                    scene.entities.add(make_shared<sphere_t>(center, 0.2, sphere_material));
+                    auto center2 = center + dvec3_t(0, random_double(0, 0.5), 0);
+                    scene.entities.add(make_shared<sphere_t>(center, center2, 0.0, 1.0, 0.2, sphere_material));
                 } else if (choose_mat < 0.95) {
                     // metal_material_t
                     auto albedo = color_t::random(0.5, 1);

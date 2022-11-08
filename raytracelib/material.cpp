@@ -10,14 +10,14 @@ bool lambertian_material_t::scatter(const ray_t& r_in, const hit_record_t& rec, 
         scatter_direction = rec.normal;
     }
 
-    scattered = ray_t(rec.p, scatter_direction);
+    scattered = ray_t(rec.p, scatter_direction, r_in.time());
     attenuation = m_albedo;
     return true;
 }
 
 bool metal_material_t::scatter(const ray_t& r_in, const hit_record_t& rec, color_t& attenuation, ray_t& scattered) const {
     const dvec3_t reflected = reflect(normalize(r_in.direction()), rec.normal);
-    scattered = ray_t(rec.p, reflected + m_fuzz*random_in_unit_sphere());
+    scattered = ray_t(rec.p, reflected + m_fuzz*random_in_unit_sphere(), r_in.time());
     attenuation = m_albedo;
     return (dot(scattered.direction(), rec.normal) > 0);
 }
@@ -40,7 +40,7 @@ bool dielectric_material_t::scatter(
     else
         direction = refract(unit_direction, rec.normal, refraction_ratio);
 
-    scattered = ray_t(rec.p, direction);
+    scattered = ray_t(rec.p, direction, r_in.time());
     return true;
 }
 

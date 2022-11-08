@@ -4,7 +4,7 @@
 using namespace glm;
 
 bool sphere_t::hit(const ray_t& r, double t_min, double t_max, hit_record_t& rec) const {
-    const dvec3_t oc = r.origin() - center;
+    const dvec3_t oc = r.origin() - center(r.time());
     const auto a = length2(r.direction());
     const auto half_b = dot(oc, r.direction());
     const auto c = length2(oc) - radius*radius;
@@ -23,7 +23,7 @@ bool sphere_t::hit(const ray_t& r, double t_min, double t_max, hit_record_t& rec
 
     rec.t = root;
     rec.p = r.at(rec.t);
-    const dvec3_t outward_normal = (rec.p - center) / radius;
+    const dvec3_t outward_normal = (rec.p - center(r.time())) / radius;
     rec.set_face_normal(r, outward_normal);
     rec.mat = mat;
 

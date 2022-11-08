@@ -4,9 +4,19 @@
 
 class camera_t {
 public:
-    camera_t(const int width, const int height, double vfov, point3 look_from, point3 look_at, dvec3_t up, double aperture, double focus_dist);
+    camera_t(
+        const int width, 
+        const int height, 
+        double vfov, 
+        point3 look_from, 
+        point3 look_at, 
+        dvec3_t up, 
+        double aperture, 
+        double focus_dist,
+        double time0 = 0,
+        double time1 = 0);
 
-    void update(const int width, const int height, double vfov, point3 look_from, point3 look_at, dvec3_t up, double aperture, double focus_dist);
+    void update(const int width, const int height, double vfov, point3 look_from, point3 look_at, dvec3_t up, double aperture, double focus_dist, double time0, double time1);
 
     [[nodiscard]] ray_t get_ray(double s, double t) const;
 
@@ -32,4 +42,6 @@ private:
 
     dvec3_t m_u, m_v, m_w;
     double m_lens_radius;
+
+    double m_time0, m_time1;
 };
