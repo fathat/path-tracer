@@ -64,6 +64,8 @@ scene_t random_scene(int image_width, int image_height) {
     auto material3 = make_shared<metal_material_t>(color_t(0.7, 0.6, 0.5), 0.0);
     scene.entities.add(make_shared<sphere_t>(point3(4, 1, 0), 1.0, material3));
 
+    scene.root = std::make_shared<bvh_node_t>(scene.entities, 0, 1);
+
     return scene;
 }
 
@@ -90,5 +92,7 @@ scene_t test_scene(int image_width, int image_height) {
     scene.entities.add(make_shared<sphere_t>(point3(-1.0,    0.0, -1.0),   0.5, material_left));
     scene.entities.add(make_shared<sphere_t>(point3(-1.0,    0.0, -1.0), -0.45, material_left));
     scene.entities.add(make_shared<sphere_t>(point3( 1.0,    0.0, -1.0),   0.5, material_right));
+
+    scene.root = std::make_shared<bvh_node_t>(scene.entities, 0, 1);
     return scene;
 }

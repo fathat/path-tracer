@@ -336,7 +336,7 @@ void render_thread(app_state_t* state, int base, int offset) {
                 const double u = (x+random_double()) / static_cast<double>(cam.width()-1);
                 const double v = (y+random_double()) / static_cast<double>(cam.height()-1);
                 ray_t r = scn.cam.get_ray(u, v);
-                pixel_color += ray_color(r, scn.entities, 0, config.max_bounces);
+                pixel_color += ray_color(r, *scn.root.get(), 0, config.max_bounces);
             }
             scanline[x] = pixel_color;
 
