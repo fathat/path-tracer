@@ -1,6 +1,10 @@
 include_directories("${CMAKE_CURRENT_LIST_DIR}/../3rdParty/")
 
 add_library(raytracelib 
+    aabb.h
+    aabb.cpp
+    bvh_node.h
+    bvh_node.cpp
     color.h 
     ray.h 
     types.h

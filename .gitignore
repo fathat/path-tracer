@@ -14,3 +14,9 @@ bin/
 .ninja_deps
 .ninja_log
 *.a
+*.VCXPROJ
+_deps/
+*.cmake
+*.proj
+.vscode/
+*.sln

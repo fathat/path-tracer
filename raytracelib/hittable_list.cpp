@@ -23,3 +23,18 @@ bool hittable_list_t::hit(const ray_t& r, double t_min, double t_max, hit_record
 
     return hit_anything;
 }
+
+bool hittable_list_t::bounding_box(double time0, double time1, aabb_t& output_box) const {
+    if (objects.empty()) return false;
+
+    aabb_t temp_box;
+    bool first_box = true;
+
+    for (const auto& object : objects) {
+        if (!object->bounding_box(time0, time1, temp_box)) return false;
+        output_box = first_box ? temp_box : surrounding_box(output_box, temp_box);
+        first_box = false;
+    }
+
+    return true;
+}

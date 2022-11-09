@@ -19,6 +19,9 @@ class hittable_list_t : public hittable_t {
         virtual bool hit(
             const ray_t& r, double t_min, double t_max, hit_record_t& rec) const override;
 
+        virtual bool bounding_box(
+            double time0, double time1, aabb_t& output_box) const override;
+
     public:
         vector<shared_ptr<hittable_t>> objects;
 };

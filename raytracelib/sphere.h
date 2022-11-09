@@ -5,30 +5,35 @@
 class sphere_t : public hittable_t {
 public:
     sphere_t() = delete;
-    sphere_t(point3 cen, double r, const shared_ptr<material_t>& material) : center0(cen), center1(cen), radius(r), mat(material) {};
+    sphere_t(point3 cen, double r, const shared_ptr<material_t>& material) : m_center0(cen), m_center1(cen), m_radius(r), m_mat(material) {};
     sphere_t(point3 cen, point3 cen1, double t0, double t1, double r, const shared_ptr<material_t>& material)
-        : center0(cen), center1(cen1), time0(t0), time1(t1), radius(r), mat(material) {}
+        : m_center0(cen), m_center1(cen1), m_time0(t0), m_time1(t1), m_radius(r), m_mat(material) {}
     
 
     virtual bool hit(
         const ray_t& r, double t_min, double t_max, hit_record_t& rec) const override;
 
-    point3 center() const { return center0; }
+    virtual bool bounding_box(double time0, double time1, aabb_t& output_box) const override;
 
-    point3 center(double time) const {
+    [[nodiscard]] point3 center() const { return m_center0; }
+
+    [[nodiscard]] point3 center(double time) const {
         if(!moving()) {
             return center();
         }
-        return center0 + ((time - time0) / (time1 - time0))*(center1 - center0);
+        return m_center0 + ((time - m_time0) / (m_time1 - m_time0))*(m_center1 - m_center0);
     }
 
-    bool moving() const {
-        return glm::epsilonNotEqual(time0, time1, 0.0001);
+    [[nodiscard]] bool moving() const {
+        return glm::epsilonNotEqual(m_time0, m_time1, 0.0001);
     }
 
-    point3 center0;
-    point3 center1;
-    double radius;
-    shared_ptr<material_t> mat;
-    double time0=0, time1=0;
+    [[nodiscard]] double radius() const { return m_radius; }
+
+protected:
+    point3 m_center0;
+    point3 m_center1;
+    double m_radius;
+    shared_ptr<material_t> m_mat;
+    double m_time0=0, m_time1=0;
 };

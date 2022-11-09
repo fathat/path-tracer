@@ -1,4 +1,5 @@
 #pragma once
+#include "aabb.h"
 #include "types.h"
 
 class ray_t;
@@ -22,4 +23,5 @@ struct hit_record_t {
 class hittable_t {
     public:
         virtual bool hit(const ray_t& r, double t_min, double t_max, hit_record_t& rec) const = 0;
+        virtual bool bounding_box(double time0, double time1, aabb_t& output_box) const = 0;
 };
