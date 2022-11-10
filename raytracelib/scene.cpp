@@ -23,7 +23,8 @@ scene_t random_scene(int image_width, int image_height) {
 
     scene_t scene {cam};
 
-    auto ground_material = make_shared<lambertian_material_t>(color_t(0.5, 0.5, 0.5));
+    //auto ground_material = make_shared<lambertian_material_t>(color_t(0.5, 0.5, 0.5));
+    auto ground_material = make_shared<lambertian_material_t>(make_shared<checker_texture_t>(color_t(0, 0, 0), color_t(0.8, 0.8, 0.8)));
     scene.entities.add(make_shared<sphere_t>(point3(0,-1000,0), 1000, ground_material));
 
     for (int a = -11; a < 11; a++) {

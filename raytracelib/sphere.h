@@ -37,3 +37,5 @@ protected:
     shared_ptr<material_t> m_mat;
     double m_time0=0, m_time1=0;
 };
+
+extern dvec2_t get_sphere_uv(const point3& p);

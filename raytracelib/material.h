@@ -1,6 +1,7 @@
 #pragma once
 #include "types.h"
 #include "color.h"
+#include "texture.h"
 
 class ray_t;
 struct hit_record_t;
@@ -15,15 +16,16 @@ public:
 
 class lambertian_material_t : public material_t {
 public:
-    explicit lambertian_material_t(const color_t& a) : m_albedo(a) {}
+    explicit lambertian_material_t(const color_t& a) : m_albedo(make_shared<solid_color_t>(a)) {}
+    lambertian_material_t(const shared_ptr<texture_t>& a) : m_albedo(a) {}
 
     bool scatter(
         const ray_t& r_in, const hit_record_t& rec, color_t& attenuation, ray_t& scattered
     ) const override;
 
-    [[nodiscard]] color_t albedo() const { return m_albedo; }
+    [[nodiscard]] shared_ptr<texture_t> albedo() const { return m_albedo; }
 protected:
-    color_t m_albedo;
+    shared_ptr<texture_t> m_albedo;
 };
 
 class metal_material_t : public material_t {

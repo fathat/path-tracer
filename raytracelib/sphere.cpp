@@ -3,6 +3,22 @@
 
 using namespace glm;
 
+dvec2_t get_sphere_uv(const point3& p) {
+    // p: a given point on the sphere of radius one, centered at the origin.
+    // u: returned value [0,1] of angle around the Y axis from X=-1.
+    // v: returned value [0,1] of angle from Y=-1 to Y=+1.
+    //     <1 0 0> yields <0.50 0.50>       <-1  0  0> yields <0.00 0.50>
+    //     <0 1 0> yields <0.50 1.00>       < 0 -1  0> yields <0.50 0.00>
+    //     <0 0 1> yields <0.25 0.50>       < 0  0 -1> yields <0.75 0.50>
+
+    auto theta = acos(-p.y);
+    auto phi = atan2(-p.z, p.x) + g_pi;
+
+    double u = phi / (2*g_pi);
+    double v = theta / g_pi;
+    return {u, v};
+}
+
 bool sphere_t::hit(const ray_t& r, double t_min, double t_max, hit_record_t& rec) const {
     const dvec3_t oc = r.origin() - center(r.time());
     const auto a = length2(r.direction());
@@ -25,6 +41,7 @@ bool sphere_t::hit(const ray_t& r, double t_min, double t_max, hit_record_t& rec
     rec.p = r.at(rec.t);
     const dvec3_t outward_normal = (rec.p - center(r.time())) / m_radius;
     rec.set_face_normal(r, outward_normal);
+    rec.uv = get_sphere_uv(outward_normal);
     rec.mat = m_mat;
 
     return true;

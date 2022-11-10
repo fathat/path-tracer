@@ -10,6 +10,9 @@ struct hit_record_t {
     dvec3_t normal;
     double t;
 
+    // texture coords
+    dvec2_t uv;
+
     shared_ptr<material_t> mat;
 
     bool front_face;

@@ -27,4 +27,6 @@ add_library(raytracelib
     scene.cpp
     raytrace.h
     raytrace.cpp
+    texture.h
+    texture.cpp
 )

@@ -11,7 +11,7 @@ bool lambertian_material_t::scatter(const ray_t& r_in, const hit_record_t& rec, 
     }
 
     scattered = ray_t(rec.p, scatter_direction, r_in.time());
-    attenuation = m_albedo;
+    attenuation = m_albedo->value(rec.uv.x, rec.uv.y, rec.p);
     return true;
 }
 
