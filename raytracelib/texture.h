@@ -75,7 +75,11 @@ class noise_texture_t : public texture_t {
         noise_texture_t(double sc) : scale(sc) {}
 
         [[nodiscard]] virtual color_t value(double u, double v, const point3& p) const override {
-            return color_t(1,1,1) * noise.noise(scale*p);
+            //basic perlin
+            //return color_t(1,1,1) * 0.5 * (1.0 + noise.noise(scale * p));
+
+            // marble like
+            return color_t(1,1,1) * 0.5 * (1 + sin(scale*p.z + 10*noise.turb(p)));
         }
 
     public:
