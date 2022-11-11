@@ -34,4 +34,6 @@ add_library(raytracelib
     stb_image_include.h
     perlin.h
     perlin.cpp
+    rect.h
+    rect.cpp
 )

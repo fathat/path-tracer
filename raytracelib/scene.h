@@ -23,3 +23,5 @@ scene_t three_spheres_scene(int image_width, int image_height);
 scene_t earth_scene(int image_width, int image_height);
 
 scene_t two_perlin_spheres_scene(int image_width, int image_height);
+
+scene_t simple_light(int image_width, int image_height);
