@@ -499,11 +499,11 @@ void loop_fn(void* arg) {
         ImGui::SameLine();
         help_marker("The larger the pixel scale, the chunkier the pixels, but the faster it will render.");
 
-        ImGui::SliderInt("Bounces", &state->cfg.max_bounces, 1, 200);
+        ImGui::SliderInt("Bounces", &state->cfg.max_bounces, 1, 2000);
         ImGui::SameLine();
         help_marker("More bounces results in higher quality, but slower render times.");
 
-        ImGui::SliderInt("Samples Per Pixel", &state->cfg.samples_per_pixel, 1, 200);
+        ImGui::SliderInt("Samples Per Pixel", &state->cfg.samples_per_pixel, 1, 2000);
         ImGui::SameLine();
         help_marker("More samples results in higher quality, but slower render times.");
 
