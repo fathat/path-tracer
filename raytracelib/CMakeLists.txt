@@ -29,4 +29,7 @@ add_library(raytracelib
     raytrace.cpp
     texture.h
     texture.cpp
+    stb_image.h
+    stb_image_resize.h
+    stb_image_include.h
 )

@@ -46,3 +46,24 @@ class checker_texture_t : public texture_t {
         shared_ptr<texture_t> odd;
         shared_ptr<texture_t> even;
 };
+
+class image_texture_t : public texture_t {
+    public:
+        const static int bytes_per_pixel = 3;
+
+        image_texture_t()
+          : data(nullptr), width(0), height(0), bytes_per_scanline(0) {}
+
+        image_texture_t(const char* filename);
+
+        ~image_texture_t() {
+            delete data;
+        }
+
+        virtual color_t value(double u, double v, const dvec3_t& p) const override;
+
+    private:
+        unsigned char *data;
+        int width, height;
+        int bytes_per_scanline;
+};

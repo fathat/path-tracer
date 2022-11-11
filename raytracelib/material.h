@@ -9,6 +9,11 @@ struct hit_record_t;
 class material_t {
 public:
     virtual ~material_t() = default;
+
+    [[nodiscard]] virtual color_t emitted(double u, double v, const point3& p) const {
+        return color_t(0,0,0);
+    }
+
     virtual bool scatter(
             const ray_t& r_in, const hit_record_t& rec, color_t& attenuation, ray_t& scattered
         ) const = 0;
@@ -55,4 +60,23 @@ protected:
 
 private:
     static double reflectance(double cosine, double ref_idx);
+};
+
+class diffuse_light : public material_t  {
+    public:
+        diffuse_light(shared_ptr<texture_t> a) : emit(a) {}
+        diffuse_light(color_t c) : emit(make_shared<solid_color_t>(c)) {}
+
+        bool scatter(
+            const ray_t& r_in, const hit_record_t& rec, color_t& attenuation, ray_t& scattered
+        ) const override {
+            return false;
+        }
+
+        [[nodiscard]] color_t emitted(double u, double v, const point3& p) const override {
+            return emit->value(u, v, p);
+        }
+
+    public:
+        shared_ptr<texture_t> emit;
 };

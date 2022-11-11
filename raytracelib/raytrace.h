@@ -19,4 +19,4 @@
  * \param max_bounces The maximum number of bounces allowed
  * \return A color
  */
-color_t ray_color(const ray_t& r, const hittable_t& world, const int stack_depth, const int max_bounces);
+color_t ray_color(const ray_t& r, const scene_t& scene, const hittable_t& world, int depth);

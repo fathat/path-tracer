@@ -66,11 +66,11 @@ scene_t random_scene(int image_width, int image_height) {
     scene.entities.add(make_shared<sphere_t>(point3(4, 1, 0), 1.0, material3));
 
     scene.root = std::make_shared<bvh_node_t>(scene.entities, 0, 1);
-
+    scene.background = {0.70, 0.80, 1.00};
     return scene;
 }
 
-scene_t test_scene(int image_width, int image_height) {
+scene_t three_spheres_scene(int image_width, int image_height) {
     
     constexpr point3 look_from(3,3,2);
     constexpr point3 look_at(0,0,-1);
@@ -94,6 +94,28 @@ scene_t test_scene(int image_width, int image_height) {
     scene.entities.add(make_shared<sphere_t>(point3(-1.0,    0.0, -1.0), -0.45, material_left));
     scene.entities.add(make_shared<sphere_t>(point3( 1.0,    0.0, -1.0),   0.5, material_right));
 
+    scene.background = {0.70, 0.80, 1.00};
+    scene.root = std::make_shared<bvh_node_t>(scene.entities, 0, 1);
+    return scene;
+}
+
+scene_t earth_scene(int image_width, int image_height) {
+    constexpr point3 look_from(13,2,3);
+    constexpr point3 look_at(0,0, 0);
+    constexpr dvec3_t vup(0,1,0);
+    const auto dist_to_focus = glm::length(look_from-look_at);
+    constexpr auto aperture = 1.0;
+
+    camera_t cam {image_width, image_height, 60.0, look_from, look_at, vup, aperture, dist_to_focus};
+        
+    scene_t scene {cam};
+
+    auto earth_texture = make_shared<image_texture_t>("earthmap.jpg");
+    auto earth_surface = make_shared<lambertian_material_t>(earth_texture);
+    auto globe = make_shared<sphere_t>(point3(0,0,0), 2, earth_surface);
+
+    scene.entities.add(globe);
+    scene.background = {0.70, 0.80, 1.00};
     scene.root = std::make_shared<bvh_node_t>(scene.entities, 0, 1);
     return scene;
 }

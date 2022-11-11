@@ -12,9 +12,12 @@ struct scene_t {
     hittable_list_t entities;
     shared_ptr<bvh_node_t> root;
     camera_t cam;
+    color_t background = {0, 0, 0};
 };
 
 
 scene_t random_scene(int image_width, int image_height);
 
-scene_t test_scene(int image_width, int image_height);
+scene_t three_spheres_scene(int image_width, int image_height);
+
+scene_t earth_scene(int image_width, int image_height);

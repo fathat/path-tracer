@@ -1,4 +1,5 @@
 #include <iostream>
+#include <filesystem>
 
 #include <SDL.h>
 #include <chrono>
@@ -336,7 +337,7 @@ void render_thread(app_state_t* state, int base, int offset) {
                 const double u = (x+random_double()) / static_cast<double>(cam.width()-1);
                 const double v = (y+random_double()) / static_cast<double>(cam.height()-1);
                 ray_t r = scn.cam.get_ray(u, v);
-                pixel_color += ray_color(r, *scn.root.get(), 0, config.max_bounces);
+                pixel_color += ray_color(r, scn, *scn.root.get(), config.max_bounces);
             }
             scanline[x] = pixel_color;
 
@@ -456,12 +457,14 @@ void loop_fn(void* arg) {
         ImGui::BeginDisabled(state->render_status->state() == render_state_t::rendering);
 
         static int current_scene = 0;
-        const char* scenes[] {"Random Spheres", "Test Scene"};
-        if(ImGui::Combo("Scene", &current_scene, scenes, 2)) {
+        const char* scenes[] {"Random Spheres", "Test Scene", "Earth"};
+        if(ImGui::Combo("Scene", &current_scene, scenes, sizeof(scenes) / sizeof(const char*))) {
             if(current_scene == 0) {
                 state->cfg.scn = random_scene(state->screen->width(), state->screen->height());
+            } else if(current_scene == 1) {
+                state->cfg.scn = three_spheres_scene(state->screen->width(), state->screen->height());
             } else {
-                state->cfg.scn = test_scene(state->screen->width(), state->screen->height());
+                state->cfg.scn = earth_scene(state->screen->width(), state->screen->height());
             }
             
         }
@@ -598,7 +601,7 @@ void raytrace_all_linear(const render_config_t& config, const shared_ptr<image_b
                 double u = (x+random_double()) / static_cast<double>(screen->width()-1);
                 double v = (y+random_double()) / static_cast<double>(screen->height()-1);
                 ray_t r = config.scn.cam.get_ray(u, v);
-                pixel_color += ray_color(r, config.scn.entities, 0, config.max_bounces);
+                pixel_color += ray_color(r, config.scn, config.scn.entities, config.max_bounces);
             }
 
             screen->write(x, (screen->height()-1)-y, pixel_color, config.samples_per_pixel);
@@ -608,6 +611,9 @@ void raytrace_all_linear(const render_config_t& config, const shared_ptr<image_b
 
 int main(int argc, char* argv[])
 {
+    //print cwd
+    std::cout << std::filesystem::current_path() << endl;
+
     constexpr int default_image_width = 480*2;
     constexpr int default_image_height = 270*2;
     constexpr int default_samples_per_pixel = 75;
