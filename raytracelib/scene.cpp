@@ -106,7 +106,7 @@ scene_t earth_scene(int image_width, int image_height) {
     const auto dist_to_focus = glm::length(look_from-look_at);
     constexpr auto aperture = 1.0;
 
-    camera_t cam {image_width, image_height, 60.0, look_from, look_at, vup, aperture, dist_to_focus};
+    camera_t cam {image_width, image_height, 20.0, look_from, look_at, vup, aperture, dist_to_focus};
         
     scene_t scene {cam};
 
@@ -115,6 +115,26 @@ scene_t earth_scene(int image_width, int image_height) {
     auto globe = make_shared<sphere_t>(point3(0,0,0), 2, earth_surface);
 
     scene.entities.add(globe);
+    scene.background = {0.70, 0.80, 1.00};
+    scene.root = std::make_shared<bvh_node_t>(scene.entities, 0, 1);
+    return scene;
+}
+
+scene_t two_perlin_spheres_scene(int image_width, int image_height) {
+    constexpr point3 look_from(13,2,3);
+    constexpr point3 look_at(0,0, 0);
+    constexpr dvec3_t vup(0,1,0);
+    const auto dist_to_focus = glm::length(look_from-look_at);
+    constexpr auto aperture = 0.1;
+
+    camera_t cam {image_width, image_height, 20.0, look_from, look_at, vup, aperture, dist_to_focus};
+        
+    scene_t scene {cam};
+
+    auto pertext = make_shared<noise_texture_t>(4);
+    scene.entities.add(make_shared<sphere_t>(point3(0,-1000,0), 1000, make_shared<lambertian_material_t>(pertext)));
+    scene.entities.add(make_shared<sphere_t>(point3(0, 2, 0), 2, make_shared<lambertian_material_t>(pertext)));
+
     scene.background = {0.70, 0.80, 1.00};
     scene.root = std::make_shared<bvh_node_t>(scene.entities, 0, 1);
     return scene;

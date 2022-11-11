@@ -2,6 +2,7 @@
 
 #include "types.h"
 #include "color.h"
+#include "perlin.h"
 
 class texture_t {
     public:
@@ -66,4 +67,18 @@ class image_texture_t : public texture_t {
         unsigned char *data;
         int width, height;
         int bytes_per_scanline;
+};
+
+class noise_texture_t : public texture_t {
+    public:
+        noise_texture_t() = default;
+        noise_texture_t(double sc) : scale(sc) {}
+
+        [[nodiscard]] virtual color_t value(double u, double v, const point3& p) const override {
+            return color_t(1,1,1) * noise.noise(scale*p);
+        }
+
+    public:
+        perlin_t noise;
+        double scale=1.0;
 };
