@@ -31,7 +31,7 @@ TEST(RayTest, RayRotation) {
 
     auto rotation = glm::angleAxis<float, glm::qualifier::defaultp>((float)degrees_to_radians(90.0), {0.0f, 1.0f, 0.0f});
     auto new_ray = r.transformed({}, rotation);
-    ASSERT_FLOAT_EQ(new_ray.direction().x, 1.0f);
+    ASSERT_DOUBLE_EQ(new_ray.direction().x, 1.0f);
 }
 
 TEST(RayTest, RayLookAt) {
@@ -39,7 +39,7 @@ TEST(RayTest, RayLookAt) {
 
     auto rotation = glm::quatLookAt<float, glm::qualifier::defaultp>({-1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f});
     auto new_ray = r.transformed({}, rotation);
-    ASSERT_FLOAT_EQ(new_ray.direction().x, 1.0f);
+    ASSERT_DOUBLE_EQ(new_ray.direction().x, 1.0f);
 }
 
 TEST(RayTest, RayTranslate) {
@@ -47,7 +47,7 @@ TEST(RayTest, RayTranslate) {
 
     auto transform = glm::translate(glm::identity<glm::mat4x4>(), {5.0f, 0.0f, 0.0f});
     auto new_ray = r.transform(transform);
-    ASSERT_FLOAT_EQ(new_ray.origin().x, 5.0f);
+    ASSERT_DOUBLE_EQ(new_ray.origin().x, 5.0f);
 }
 
 TEST(RayTest, RayRotate) {
