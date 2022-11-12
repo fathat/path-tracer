@@ -31,6 +31,9 @@ typedef glm::vec<2, double, glm::highp>	dvec2_t;
 
 typedef glm::vec<3, double, glm::highp>	point3;
 
+typedef glm::mat<4, 4, double, glm::highp> dmat4_t;
+
+
 using std::cout;
 using std::endl;
 using std::stringstream;

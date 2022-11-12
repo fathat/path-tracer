@@ -142,7 +142,7 @@ scene_t two_perlin_spheres_scene(int image_width, int image_height) {
 }
 
 scene_t simple_light(int image_width, int image_height) {
-    constexpr point3 look_from(26,3,6);
+    constexpr point3 look_from(0,3,20);
     constexpr point3 look_at(0,2, 0);
     constexpr dvec3_t vup(0,1,0);
     const auto dist_to_focus = glm::length(look_from-look_at);
@@ -152,14 +152,18 @@ scene_t simple_light(int image_width, int image_height) {
         
     scene_t scene {cam};
 
+    auto light_rotation = glm::angleAxis<float, glm::qualifier::defaultp>((float)degrees_to_radians(-90.0), {0.0f, 1.0f, 0.0f});
+
     auto pertext = make_shared<noise_texture_t>(4);
     scene.entities.add(make_shared<sphere_t>(point3(0,-1000,0), 1000, make_shared<lambertian_material_t>(pertext)));
     scene.entities.add(make_shared<sphere_t>(point3(0, 2, 0), 2, make_shared<lambertian_material_t>(pertext)));
 
     auto difflight = make_shared<diffuse_light>(color_t(4,4,4));
-    scene.entities.add(make_shared<xy_rect_t>(3, 5, 1, 3, -2, difflight));
 
-    scene.background = {0.0, 0.0, 0.0};
+    scene.entities.add(make_shared<rect_t>(3, 3, dvec3_t{3.0, 2.0f, 0}, light_rotation, difflight));
+    
+
+    scene.background = {0.1, 0.2, 0.3};
     scene.root = std::make_shared<bvh_node_t>(scene.entities, 0, 1);
     return scene;    
 }
