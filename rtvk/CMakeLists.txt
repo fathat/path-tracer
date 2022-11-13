@@ -5,6 +5,10 @@ find_package(Vulkan REQUIRED)
 
 add_executable(rtvk
     vk_types.h
+    VkBootstrap.h
+    VkBootstrap.cpp
+    vkengine.h
+    vkengine.cpp
     vkmain.cpp
 )
 
