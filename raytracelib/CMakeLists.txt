@@ -36,4 +36,6 @@ add_library(raytracelib
     perlin.cpp
     rect.h
     rect.cpp
+    box.h
+    box.cpp
 )

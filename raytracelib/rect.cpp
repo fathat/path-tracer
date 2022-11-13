@@ -33,15 +33,13 @@ double max_val(const std::vector<dvec3_t>& points, int axis) {
     return m;
 }
 
-rect_t::rect_t(double w, double h, dvec3_t center, glm::quat rotation, shared_ptr<material_t> mat): m_width(w), m_height(h), m_material(mat), m_center(center), m_rotation(rotation) {
+rect_t::rect_t(double w, double h, dvec3_t center, glm::quat rotation, const shared_ptr<material_t>& mat): m_width(w), m_height(h), m_material(mat), m_center(center), m_rotation(rotation) {
     calc_transform();
     calc_bounding_box();
 }
 
 void rect_t::calc_transform() {
-    const dmat4_t t = glm::translate(glm::identity<dmat4_t>(), m_center);
-    const dmat4_t r = glm::toMat4(m_rotation);
-    m_cached_transform = t * r;
+    m_cached_transform = create_transform_matrix(m_center, m_rotation);
     m_cached_inverse_transform = glm::inverse(m_cached_transform);
 }
 
@@ -100,8 +98,8 @@ bool rect_t::hit(const ray_t& ray_original, double t_min, double t_max, hit_reco
         return false;
     rec.uv = dvec2_t((x-x0)/(x1-x0),(y-y0)/(y1-y0));
 
-    dvec3_t local_point = local_ray.at(t);
-    dvec4_t world_point = tform * glm::vec<4, double, glm::qualifier::highp>{local_point.x, local_point.y, local_point.z, 1.0};
+    const point3 local_point = local_ray.at(t);
+    const point3 world_point = transform_point(local_point, tform);
 
     rec.t = t;
     auto outward_normal = tform * glm::vec4(0, 0, 1, 0);

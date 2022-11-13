@@ -13,12 +13,12 @@ inline double random_double() {
     return rand() / (RAND_MAX + 1.0);
 }
 
-inline double random_double(double min, double max) {
+inline double random_double(const double min, const double max) {
     // Returns a random real in [min,max).
     return min + (max-min)*random_double();
 }
 
-inline int random_int(int min, int max) {
+inline int random_int(const int min, const int max) {
     // Returns a random integer in [min,max].
     return static_cast<int>(random_double(min, max+1));
 }
@@ -33,6 +33,8 @@ typedef glm::vec<3, double, glm::highp>	point3;
 
 typedef glm::mat<4, 4, double, glm::highp> dmat4_t;
 
+
+using glm::dquat;
 
 using std::cout;
 using std::endl;
@@ -102,3 +104,8 @@ inline dvec3_t refract(const dvec3_t& uv, const dvec3_t& n, const double etai_ov
     const dvec3_t r_out_parallel = -sqrt(fabs(1.0 - length2(r_out_perp))) * n;
     return r_out_perp + r_out_parallel;
 }
+
+dmat4_t create_transform_matrix(const dvec3_t& location, const dquat& rotation);
+
+point3 transform_point(const point3& p, const dmat4_t& transform);
+dvec3_t transform_vec(const dvec3_t& p, const dmat4_t& transform);
