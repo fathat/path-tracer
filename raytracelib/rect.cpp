@@ -33,49 +33,21 @@ double max_val(const std::vector<dvec3_t>& points, int axis) {
     return m;
 }
 
-dmat4_t rect_t::transform() const {
-    const dmat4_t t = glm::translate(glm::identity<dmat4_t>(), location);
-    const dmat4_t r = glm::toMat4(rotation);
-    return t * r;
+rect_t::rect_t(double w, double h, dvec3_t center, glm::quat rotation, shared_ptr<material_t> mat): m_width(w), m_height(h), m_material(mat), m_center(center), m_rotation(rotation) {
+    calc_transform();
+    calc_bounding_box();
 }
 
-bool rect_t::hit(const ray_t& ray_original, double t_min, double t_max, hit_record_t& rec) const {
-    auto k = 0;
-    double w2 = width/2;
-    double h2 = height/2;
-
-    double x0 = -w2;
-    double x1 = w2;
-    double y0 = -h2;
-    double y1 = h2;
-
-    auto invTransform = glm::inverse(transform());
-
-    auto local_ray = ray_original.transform(invTransform);
-
-    auto t = (k-local_ray.origin().z) / local_ray.direction().z;
-    if (t < t_min || t > t_max)
-        return false;
-    auto x = local_ray.origin().x + t*local_ray.direction().x;
-    auto y = local_ray.origin().y + t*local_ray.direction().y;
-    if (x < x0 || x > x1 || y < y0 || y > y1)
-        return false;
-    rec.uv = dvec2_t((x-x0)/(x1-x0),(y-y0)/(y1-y0));
-
-    dvec3_t local_point = local_ray.at(t);
-    dvec4_t world_point = transform() * glm::vec<4, double, glm::qualifier::highp>{local_point.x, local_point.y, local_point.z, 1.0};
-
-    rec.t = t;
-    auto outward_normal = transform()* glm::vec4(0, 0, 1, 0);
-    rec.set_face_normal(ray_original, outward_normal);
-    rec.mat = mp;
-    rec.p = world_point;
-    return true;
+void rect_t::calc_transform() {
+    const dmat4_t t = glm::translate(glm::identity<dmat4_t>(), m_center);
+    const dmat4_t r = glm::toMat4(m_rotation);
+    m_cached_transform = t * r;
+    m_cached_inverse_transform = glm::inverse(m_cached_transform);
 }
 
-bool rect_t::bounding_box(double time0, double time1, aabb_t& output_box) const {
-    double w2 = width/2;
-    double h2 = height/2;
+void rect_t::calc_bounding_box() {
+    double w2 = m_width/2;
+    double h2 = m_height/2;
     dvec3_t a = point3(-w2, -h2, 0.0);
     dvec3_t b = point3(w2, -h2, 0.0);
     dvec3_t c = point3(w2, h2, 0.0);
@@ -86,8 +58,8 @@ bool rect_t::bounding_box(double time0, double time1, aabb_t& output_box) const 
         
     for(auto p : points) {
         glm::vec4 v = {p.x, p.y, p.z, 0};
-        auto rotated = rotation * v;
-        auto transformed = dvec3_t(rotated.x, rotated.y, rotated.z) + location;
+        auto rotated = m_rotation * v;
+        auto transformed = dvec3_t(rotated.x, rotated.y, rotated.z) + m_center;
         transformed_points.push_back(transformed);
     }
 
@@ -100,7 +72,47 @@ bool rect_t::bounding_box(double time0, double time1, aabb_t& output_box) const 
     double ymax = max_val(transformed_points, 1) + 0.001;
     double zmax = max_val(transformed_points, 2) + 0.001;
 
-    output_box = aabb_t(point3(xmin, ymin, zmin), point3(xmax, ymax, zmax));
+    m_cached_bb = aabb_t(point3(xmin, ymin, zmin), point3(xmax, ymax, zmax));
+}
 
+bool rect_t::hit(const ray_t& ray_original, double t_min, double t_max, hit_record_t& rec) const {
+    // TODO add time
+    auto k = 0;
+    double w2 = m_width/2;
+    double h2 = m_height/2;
+
+    double x0 = -w2;
+    double x1 = w2;
+    double y0 = -h2;
+    double y1 = h2;
+
+    auto tform = transform();
+    auto inv_tform = inverse_transform();
+
+    auto local_ray = ray_original.transform(inv_tform);
+
+    auto t = (k-local_ray.origin().z) / local_ray.direction().z;
+    if (t < t_min || t > t_max)
+        return false;
+    auto x = local_ray.origin().x + t*local_ray.direction().x;
+    auto y = local_ray.origin().y + t*local_ray.direction().y;
+    if (x < x0 || x > x1 || y < y0 || y > y1)
+        return false;
+    rec.uv = dvec2_t((x-x0)/(x1-x0),(y-y0)/(y1-y0));
+
+    dvec3_t local_point = local_ray.at(t);
+    dvec4_t world_point = tform * glm::vec<4, double, glm::qualifier::highp>{local_point.x, local_point.y, local_point.z, 1.0};
+
+    rec.t = t;
+    auto outward_normal = tform * glm::vec4(0, 0, 1, 0);
+    rec.set_face_normal(ray_original, outward_normal);
+    rec.mat = m_material;
+    rec.p = world_point;
+    return true;
+}
+
+bool rect_t::bounding_box(double time0, double time1, aabb_t& output_box) const {
+    //TODO: incorporate time
+    output_box = m_cached_bb;
     return true;
 }

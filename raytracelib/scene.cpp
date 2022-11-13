@@ -163,7 +163,7 @@ scene_t simple_light(int image_width, int image_height) {
     scene.entities.add(make_shared<rect_t>(3, 3, dvec3_t{3.0, 2.0f, 0}, light_rotation, difflight));
     
 
-    scene.background = {0.1, 0.2, 0.3};
+    scene.background = {0.01, 0.02, 0.03};
     scene.root = std::make_shared<bvh_node_t>(scene.entities, 0, 1);
     return scene;    
 }
