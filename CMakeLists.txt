@@ -5,6 +5,8 @@ set(SDL2_DIR "${CMAKE_CURRENT_LIST_DIR}/3rdParty/SDL2-2.0.22")
 endif()
 set(IMGUI_DIR "${CMAKE_CURRENT_LIST_DIR}/3rdParty/imgui")
 
+set(RTLIB_DIR "${CMAKE_CURRENT_LIST_DIR}/raytracelib")
+
 # set the project name
 project(PathTracer VERSION 1.0)
 
@@ -68,6 +70,11 @@ add_executable(PathTracer
     3rdParty/imgui/imstb_textedit.h
     3rdParty/imgui/imstb_truetype.h
     )
+
+if (NOT EMSCRIPTEN)
+    add_subdirectory(rtvk)
+endif()
+
 
 if (APPLE)
 target_link_libraries(PathTracer PRIVATE SDL2::SDL2 raytracelib)
