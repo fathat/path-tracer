@@ -46,7 +46,7 @@ TEST(RayTest, RayTranslate) {
     ray_t r { {0.0,0.0,0.0}, {0.0, 0.0, 1.0} };
 
     auto transform = glm::translate(glm::identity<glm::mat4x4>(), {5.0f, 0.0f, 0.0f});
-    auto new_ray = r.transform(transform);
+    auto new_ray = r.transformed(transform);
     ASSERT_DOUBLE_EQ(new_ray.origin().x, 5.0f);
 }
 
@@ -55,7 +55,7 @@ TEST(RayTest, RayRotate) {
         
     //glm::mat4x4 translate = glm::translate(glm::identity<glm::mat4x4>(), {5.0f, 0.0f, 0.0f});
     dmat4_t rotate = glm::rotate(identity<dmat4_t>(), glm::radians(90.0), {0.0, 1.0, 0.0});
-    auto new_ray = r.transform(rotate);
+    auto new_ray = r.transformed(rotate);
     ASSERT_DOUBLE_EQ(new_ray.direction().x, 1.0f);
     ASSERT_TRUE(double_eq(new_ray.direction().z , 0.0f));
 }
@@ -65,7 +65,7 @@ TEST(RayTest, RayTranslateAndRotate) {
         
     dmat4_t translation = translate(identity<dmat4>(), {5.0, 0.0, 0.0});
     dmat4_t rotation = rotate(identity<dmat4_t>(), glm::radians(90.0), {0.0, 1.0, 0.0});
-    auto new_ray = r.transform( translation * rotation);
+    auto new_ray = r.transformed( translation * rotation);
     ASSERT_DOUBLE_EQ(new_ray.direction().x, 1.0);
     ASSERT_TRUE(double_eq(new_ray.direction().z , 0.0));
     ASSERT_TRUE(double_eq(new_ray.origin().x , 5.0));

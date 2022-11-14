@@ -24,7 +24,7 @@ box_t::box_t(dvec3_t center, dquat rotation, double width, double height, double
 bool box_t::hit(const ray_t& r, double t_min, double t_max, hit_record_t& out) const {
 
     //translate to local space
-    ray_t local_ray = r.transform(m_cached_inverse_transform);
+    ray_t local_ray = r.transformed(m_cached_inverse_transform);
 
     std::vector<hit_record_t> hits;
 

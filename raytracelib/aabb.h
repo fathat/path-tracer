@@ -1,5 +1,6 @@
 #pragma once
 
+#include <vector>
 #include "types.h"
 #include "ray.h"
 
@@ -7,9 +8,12 @@ class aabb_t {
 public:
     aabb_t() {}
     aabb_t(const point3& a, const point3& b) { m_minimum = a; m_maximum = b; }
+    aabb_t(const std::vector<point3>& point_cloud);
 
     [[nodiscard]] point3 min() const { return m_minimum; }
     [[nodiscard]] point3 max() const { return m_maximum; }
+
+    std::vector<point3> vertices() const;
 
     void expand(const aabb_t& other);
 

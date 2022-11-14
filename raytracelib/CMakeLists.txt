@@ -38,4 +38,6 @@ add_library(raytracelib
     rect.cpp
     box.h
     box.cpp
+    instance.h
+    instance.cpp
 )

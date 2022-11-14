@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <memory>
 #include <cmath>
+#include <vector>
 #include <glm/glm.hpp>
 #include <glm/vec3.hpp>
 #include <glm/gtx/norm.hpp>
@@ -108,4 +109,17 @@ inline dvec3_t refract(const dvec3_t& uv, const dvec3_t& n, const double etai_ov
 dmat4_t create_transform_matrix(const dvec3_t& location, const dquat& rotation);
 
 point3 transform_point(const point3& p, const dmat4_t& transform);
+void transform_points(const std::vector<point3>& points, const dmat4_t& transform, std::vector<point3>& storage);
 dvec3_t transform_vec(const dvec3_t& p, const dmat4_t& transform);
+
+namespace axis {
+    enum axis_t {
+        X = 0,
+        Y = 1,
+        Z = 2
+    };
+}
+
+double extract_axis(const dvec3_t& v, int axis);
+double min_val(const std::vector<dvec3_t>& points, int axis);
+double max_val(const std::vector<dvec3_t>& points, int axis);

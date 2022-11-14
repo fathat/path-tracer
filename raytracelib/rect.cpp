@@ -1,38 +1,6 @@
 #include "rect.h"
 #include <glm/gtc/quaternion.hpp>
 
-double extract_axis(const dvec3_t& v, int axis) {
-    if(axis == 0) {
-        return v.x;
-    } else if(axis == 1) {
-        return v.y;
-    } else {
-        return v.z;
-    }
-}
-
-double min_val(const std::vector<dvec3_t>& points, int axis) {
-    double m = std::numeric_limits<double>::max();
-    for(const auto& p : points) {
-        auto v = extract_axis(p, axis);
-        if(v < m) {
-            m = v;
-        }
-    }
-    return m;
-}
-
-double max_val(const std::vector<dvec3_t>& points, int axis) {
-    double m = -std::numeric_limits<double>::max();
-    for(const auto& p : points) {
-        auto v = extract_axis(p, axis);
-        if(v > m) {
-            m = v;
-        }
-    }
-    return m;
-}
-
 rect_t::rect_t(double w, double h, dvec3_t center, glm::quat rotation, const shared_ptr<material_t>& mat): m_width(w), m_height(h), m_material(mat), m_center(center), m_rotation(rotation) {
     calc_transform();
     calc_bounding_box();
@@ -87,7 +55,7 @@ bool rect_t::hit(const ray_t& ray_original, double t_min, double t_max, hit_reco
     auto tform = transform();
     auto inv_tform = inverse_transform();
 
-    auto local_ray = ray_original.transform(inv_tform);
+    auto local_ray = ray_original.transformed(inv_tform);
 
     auto t = (k-local_ray.origin().z) / local_ray.direction().z;
     if (t < t_min || t > t_max)

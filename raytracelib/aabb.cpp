@@ -1,5 +1,32 @@
 #include "aabb.h"
 
+aabb_t::aabb_t(const std::vector<point3>& point_cloud) {
+    m_minimum = {
+        min_val(point_cloud, axis::X),
+        min_val(point_cloud, axis::Y),
+        min_val(point_cloud, axis::Z)
+    };
+
+    m_maximum = {
+        max_val(point_cloud, axis::X),
+        max_val(point_cloud, axis::Y),
+        max_val(point_cloud, axis::Z)
+    };
+}
+
+std::vector<point3> aabb_t::vertices() const {
+    return {
+        m_minimum,                                 // 000  0
+        {m_minimum.x, m_minimum.y, m_maximum.z}, // 001  1 
+        {m_minimum.x, m_maximum.y, m_minimum.z}, // 010  2
+        {m_minimum.x, m_maximum.y, m_maximum.z}, // 011  3
+        {m_maximum.x, m_minimum.y, m_minimum.z}, // 100  4
+        {m_maximum.x, m_minimum.y, m_maximum.z}, // 101  5
+        {m_maximum.x, m_maximum.y, m_minimum.z}, // 110  6
+        m_maximum,                                 // 111  7
+    };
+}
+
 void aabb_t::expand(const aabb_t& other) {
     m_minimum.x = std::min(m_minimum.x, other.min().x);
     m_minimum.y = std::min(m_minimum.y, other.min().y);

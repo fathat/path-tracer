@@ -18,7 +18,7 @@ public:
         return m_orig + t*m_dir;
     }
 
-    ray_t transform(const glm::mat4x4& transform) const {
+    ray_t transformed(const glm::mat4x4& transform) const {
         auto origin = transform * glm::vec4(m_orig.x, m_orig.y, m_orig.z, 1.0f);
         auto dir = transform * glm::vec4(m_dir.x, m_dir.y, m_dir.z, 0.0f);
         return {origin, dir, m_time};
