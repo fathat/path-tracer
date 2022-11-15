@@ -31,3 +31,7 @@ scene_t simple_box(int image_width, int image_height);
 scene_t box_test(int image_width, int image_height);
 
 scene_t cornell_box(int image_width, int image_height);
+
+scene_t cornell_smoke_box(int image_width, int image_height);
+
+scene_t all_test(int image_width, int image_height);

@@ -4,6 +4,8 @@
 #include <cstdlib>
 #include <memory>
 #include <cmath>
+#include <iomanip>
+#include <sstream>
 #include <vector>
 #include <glm/glm.hpp>
 #include <glm/vec3.hpp>
@@ -123,3 +125,6 @@ namespace axis {
 double extract_axis(const dvec3_t& v, int axis);
 double min_val(const std::vector<dvec3_t>& points, int axis);
 double max_val(const std::vector<dvec3_t>& points, int axis);
+
+std::ostream& operator <<(std::ostream& os, const dvec3_t& v);
+std::ostream& operator <<(std::ostream& os, const dquat& q);

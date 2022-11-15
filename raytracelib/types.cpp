@@ -53,3 +53,19 @@ double max_val(const std::vector<dvec3_t>& points, int axis) {
     }
     return m;
 }
+
+std::ostream& operator<<(std::ostream& os, const dvec3_t& v) {
+    std::stringstream ss;
+    ss << std::setprecision(2);
+    ss << "dvec3_t{" << v.x << ", " << v.y << ", " << v.z << "}";
+    os << ss.str();
+    return os;
+}
+
+std::ostream& operator <<(std::ostream& os, const dquat& q) {
+    std::stringstream ss;
+    ss << std::setprecision(2);
+    ss << "dquat{" << q.x << ", " << q.y << ", " << q.z << ", " << q.w << "}";
+    os << ss.str();
+    return os;
+}

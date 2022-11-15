@@ -1,10 +1,9 @@
 #pragma once
 #include "types.h"
 #include "color.h"
+#include "ray.h"
 #include "texture.h"
-
-class ray_t;
-struct hit_record_t;
+#include "hittable.h"
 
 class material_t {
 public:
@@ -79,4 +78,21 @@ class diffuse_light : public material_t  {
 
     public:
         shared_ptr<texture_t> emit;
+};
+
+class isotropic_material_t : public material_t {
+    public:
+        isotropic_material_t(color_t c) : albedo(make_shared<solid_color_t>(c)) {}
+        isotropic_material_t(shared_ptr<texture_t> a) : albedo(a) {}
+
+        virtual bool scatter(
+            const ray_t& r_in, const hit_record_t& rec, color_t& attenuation, ray_t& scattered
+        ) const override {
+            scattered = ray_t(rec.p, random_in_unit_sphere(), r_in.time());
+            attenuation = albedo->value(rec.uv.x, rec.uv.y, rec.p);
+            return true;
+        }
+
+    public:
+        shared_ptr<texture_t> albedo;
 };

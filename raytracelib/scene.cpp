@@ -1,6 +1,7 @@
 #include "scene.h"
 
 #include "box.h"
+#include "constant_medium.h"
 #include "rect.h"
 
 scene_t random_scene(int image_width, int image_height) {
@@ -254,4 +255,88 @@ scene_t cornell_box(int image_width, int image_height) {
     scene.background = {0.0, 0.0, 0.0};
     scene.root = std::make_shared<bvh_node_t>(scene.entities, 0, 1);
     return scene;    
+}
+
+scene_t cornell_smoke_box(int image_width, int image_height) {
+    constexpr point3 look_from(0,0,800);
+    constexpr point3 look_at(0,0, 0);
+    constexpr dvec3_t vup(0,1,0);
+    const auto dist_to_focus = glm::length(look_from-look_at);
+    constexpr auto aperture = 0.1;
+
+    camera_t cam {image_width, image_height, 40.0, look_from, look_at, vup, aperture, dist_to_focus};
+        
+    scene_t scene {cam};
+
+    auto red   = make_shared<lambertian_material_t>(color_t(.65, .05, .05));
+    auto white = make_shared<lambertian_material_t>(color_t(.73, .73, .73));
+    auto green = make_shared<lambertian_material_t>(color_t(.12, .45, .15));
+    auto blue = make_shared<lambertian_material_t>(color_t(.12, .45, .85));
+    auto light = make_shared<diffuse_light>(color_t(15, 15, 15));
+    
+    auto r90y = glm::angleAxis<double, glm::qualifier::defaultp>(degrees_to_radians(90.0), {0.0, 1.0, 0.0});
+    auto r90x = glm::angleAxis<double, glm::qualifier::defaultp>(degrees_to_radians(90.0), {1.0, 0.0, 0.0});
+
+    auto r15y = glm::angleAxis<double, glm::qualifier::defaultp>(degrees_to_radians(15.0), {0.0, 1.0, 0.0});
+    auto rn15y = glm::angleAxis<double, glm::qualifier::defaultp>(degrees_to_radians(-15.0), {0.0, 1.0, 0.0});
+
+    scene.entities.add(make_shared<rect_t>(555, 555, dvec3_t{0, 0, -555.5}, glm::quat(), white));
+    scene.entities.add(make_shared<rect_t>(555, 555, dvec3_t{0, -277.5, -277.5}, r90x, white));
+    scene.entities.add(make_shared<rect_t>(555, 555, dvec3_t{0,  277.5, -277.5}, r90x, white));
+    scene.entities.add(make_shared<rect_t>(150, 150, dvec3_t{0,  277, -277.5}, r90x, light));
+    scene.entities.add(make_shared<rect_t>(555, 555, dvec3_t{-277.5, 0, -277.5}, r90y, red));
+    scene.entities.add(make_shared<rect_t>(555, 555, dvec3_t{ 277.5, 0, -277.5}, r90y, green));
+
+    //add some boxes
+    auto box1 = make_shared<box_t>(dvec3_t{50, -277.5 + (150.0/2.0), -150}, rn15y, 150, 150, 150, white);
+    auto box2 = make_shared<box_t>(dvec3_t{-100, -277.5 + (250/2.0), -400}, r15y, 200, 250, 200, white);
+
+    scene.entities.add(make_shared<constant_medium_t>(box1, 0.1, color_t(0,0,0)));
+    scene.entities.add(make_shared<constant_medium_t>(box2, 0.1, color_t(0.5,0.5,0.5)));
+    
+
+    scene.background = {0.0, 0.0, 0.0};
+    scene.root = std::make_shared<bvh_node_t>(scene.entities, 0, 1);
+    return scene;    
+}
+
+
+scene_t all_test(int image_width, int image_height) {
+
+    constexpr point3 look_from(478,278,-600);
+    constexpr point3 look_at(278,278, 0);
+    constexpr dvec3_t vup(0,1,0);
+    const auto dist_to_focus = glm::length(look_from-look_at);
+    constexpr auto aperture = 0.1;
+
+    auto r90x = glm::angleAxis<double, glm::qualifier::defaultp>(degrees_to_radians(90.0), {1.0, 0.0, 0.0});
+    camera_t cam {image_width, image_height, 40.0, look_from, look_at, vup, aperture, dist_to_focus};
+        
+    scene_t scene {cam};
+    
+    auto ground = make_shared<lambertian_material_t>(color_t(0.48, 0.83, 0.53));
+
+    const int boxes_per_side = 20;
+    for (int i = 0; i < boxes_per_side; i++) {
+        for (int j = 0; j < boxes_per_side; j++) {
+            auto w = 100.0;
+            auto x0 = -1000.0 + i*w;
+            auto z0 = -1000.0 + j*w;
+            auto y0 = 0;
+            
+            scene.entities.add(make_shared<box_t>(point3(x0,y0,z0), glm::dquat(), 100,random_double(10, 150), 100, ground));
+        }
+    }
+
+    scene.entities.add(make_shared<sphere_t>(point3(260, 150, 45), 50, make_shared<dielectric_material_t>(1.5)));
+    scene.entities.add(make_shared<sphere_t>(
+        point3(0, 150, 145), 50, make_shared<metal_material_t>(color_t(0.8, 0.8, 0.9), 1.0)
+    ));
+
+    auto light = make_shared<diffuse_light>(color_t(7, 7, 7));
+    scene.entities.add(make_shared<rect_t>(300, 300, dvec3_t{0, 554, 0}, r90x, light));
+
+    scene.background = {0.0, 0.0, 0.0};
+    scene.root = std::make_shared<bvh_node_t>(scene.entities, 0, 1);
+    return scene;
 }

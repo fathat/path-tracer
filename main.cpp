@@ -457,22 +457,26 @@ void loop_fn(void* arg) {
         ImGui::BeginDisabled(state->render_status->state() == render_state_t::rendering);
 
         static int current_scene = 0;
-        const char* scenes[] {"Random Spheres", "Test Scene", "Earth", "Two Perlin Spheres", "Simple Light", "Simple Box", "Cornell Box"};
+        const char* scenes[] {"Random Spheres", "Test Scene", "Earth", "Two Perlin Spheres", "Simple Light", "Simple Box", "Cornell Box", "Smoke", "All Test"};
         if(ImGui::Combo("Scene", &current_scene, scenes, sizeof(scenes) / sizeof(const char*))) {
             if(current_scene == 0) {
                 state->cfg.scn = random_scene(state->screen->width(), state->screen->height());
             } else if(current_scene == 1) {
                 state->cfg.scn = three_spheres_scene(state->screen->width(), state->screen->height());
-            } else  if(current_scene == 2) {
+            } else if(current_scene == 2) {
                 state->cfg.scn = earth_scene(state->screen->width(), state->screen->height());
-            }  if(current_scene == 3) {
+            } else if(current_scene == 3) {
                 state->cfg.scn = two_perlin_spheres_scene(state->screen->width(), state->screen->height());
-            }  if(current_scene == 4) {
+            } else if(current_scene == 4) {
                 state->cfg.scn = simple_light(state->screen->width(), state->screen->height());
-            }  if(current_scene == 5) {
+            } else if(current_scene == 5) {
                 state->cfg.scn = simple_box(state->screen->width(), state->screen->height());
-            }  if(current_scene == 6) {
+            } else if(current_scene == 6) {
                 state->cfg.scn = cornell_box(state->screen->width(), state->screen->height());
+            } else if(current_scene == 7) {
+                state->cfg.scn = cornell_smoke_box(state->screen->width(), state->screen->height());
+            } else if(current_scene == 8) {
+                state->cfg.scn = all_test(state->screen->width(), state->screen->height());
             }
             
         }
