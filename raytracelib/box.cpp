@@ -17,8 +17,33 @@ box_t::box_t(dvec3_t center, dquat rotation, double width, double height, double
     m_top = make_shared<rect_t>(width, depth, dvec3_t{0, h2, 0}, r90x, mat);
     m_bottom = make_shared<rect_t>(width, depth, dvec3_t{0, -h2, 0}, r90x, mat);
 
+    m_sides.add(m_front);
+    m_sides.add(m_back);
+    m_sides.add(m_left);
+    m_sides.add(m_right);
+    m_sides.add(m_top);
+    m_sides.add(m_bottom);
+
     m_cached_transform = create_transform_matrix(m_center, m_rotation);
     m_cached_inverse_transform = glm::inverse(m_cached_transform);
+
+    //calculate vertices
+    std::vector<dvec3_t> vertices = {
+        {-w2, -h2, -d2},
+        { w2, -h2, -d2},
+        { w2, -h2, d2},
+        {-w2, -h2, d2},
+        {-w2, h2, -d2},
+        { w2, h2, -d2},
+        { w2, h2, d2},
+        {-w2, h2, d2},
+    };
+
+    for(const auto& v : vertices) {
+        m_vertices.push_back(transform_point(v, m_cached_transform));
+    }
+
+    m_cached_bb = aabb_t(m_vertices);
 }
 
 bool box_t::hit(const ray_t& r, double t_min, double t_max, hit_record_t& out) const {
@@ -26,43 +51,16 @@ bool box_t::hit(const ray_t& r, double t_min, double t_max, hit_record_t& out) c
     //translate to local space
     ray_t local_ray = r.transformed(m_cached_inverse_transform);
 
-    std::vector<hit_record_t> hits;
-
-    for(auto& surface : {m_front, m_back, m_left, m_right, m_top, m_bottom}) {
-        hit_record_t rec;
-        if(surface->hit(local_ray, t_min, t_max, rec)) {
-            hits.push_back(rec);
-        }
-    }
-
-    // find the closest hit
-    if(!hits.empty()) {
-        hit_record_t* closest_hit = &hits[0];
-
-        for(size_t i=1; i<hits.size(); i++) {
-            if(hits[i].t < closest_hit->t) {
-                closest_hit = &hits[i];
-            }
-        }
-
-        closest_hit->p  = transform_point(closest_hit->p, m_cached_transform);
-        closest_hit->normal = transform_vec(closest_hit->normal, m_cached_transform);
-
-        out = *closest_hit;
+    bool hit = m_sides.hit(local_ray, t_min, t_max, out);
+    if(hit) {
+        out.p = transform_point(out.p, m_cached_transform);
+        out.normal = transform_vec(out.normal, m_cached_transform);
     }
     
-    return !hits.empty();
+    return hit;
 }
 
 bool box_t::bounding_box(double time0, double time1, aabb_t& output_box) const {
-    aabb_t box;
-
-    for(auto& surface : {m_front, m_back, m_left, m_right, m_top, m_bottom}) {
-        aabb_t surface_bb;
-        if(surface->bounding_box(time0, time1, surface_bb)) {
-            box.expand(surface_bb);
-        }
-    }
-    output_box = box;
+    output_box = m_cached_bb;
     return true;
 }

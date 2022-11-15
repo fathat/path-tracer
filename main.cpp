@@ -457,7 +457,7 @@ void loop_fn(void* arg) {
         ImGui::BeginDisabled(state->render_status->state() == render_state_t::rendering);
 
         static int current_scene = 0;
-        const char* scenes[] {"Random Spheres", "Test Scene", "Earth", "Two Perlin Spheres", "Simple Light", "Simple Box"};
+        const char* scenes[] {"Random Spheres", "Test Scene", "Earth", "Two Perlin Spheres", "Simple Light", "Simple Box", "Cornell Box"};
         if(ImGui::Combo("Scene", &current_scene, scenes, sizeof(scenes) / sizeof(const char*))) {
             if(current_scene == 0) {
                 state->cfg.scn = random_scene(state->screen->width(), state->screen->height());
@@ -471,6 +471,8 @@ void loop_fn(void* arg) {
                 state->cfg.scn = simple_light(state->screen->width(), state->screen->height());
             }  if(current_scene == 5) {
                 state->cfg.scn = simple_box(state->screen->width(), state->screen->height());
+            }  if(current_scene == 6) {
+                state->cfg.scn = cornell_box(state->screen->width(), state->screen->height());
             }
             
         }

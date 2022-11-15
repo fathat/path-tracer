@@ -1,7 +1,7 @@
 #include "rect.h"
 #include <glm/gtc/quaternion.hpp>
 
-rect_t::rect_t(double w, double h, dvec3_t center, glm::quat rotation, const shared_ptr<material_t>& mat): m_width(w), m_height(h), m_material(mat), m_center(center), m_rotation(rotation) {
+rect_t::rect_t(double w, double h, dvec3_t center, glm::dquat rotation, const shared_ptr<material_t>& mat): m_width(w), m_height(h), m_material(mat), m_center(center), m_rotation(rotation) {
     calc_transform();
     calc_bounding_box();
 }
