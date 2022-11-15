@@ -235,6 +235,10 @@ scene_t cornell_box(int image_width, int image_height) {
     
     auto r90y = glm::angleAxis<double, glm::qualifier::defaultp>(degrees_to_radians(90.0), {0.0, 1.0, 0.0});
     auto r90x = glm::angleAxis<double, glm::qualifier::defaultp>(degrees_to_radians(90.0), {1.0, 0.0, 0.0});
+
+    auto r15y = glm::angleAxis<double, glm::qualifier::defaultp>(degrees_to_radians(15.0), {0.0, 1.0, 0.0});
+    auto rn15y = glm::angleAxis<double, glm::qualifier::defaultp>(degrees_to_radians(-15.0), {0.0, 1.0, 0.0});
+
     scene.entities.add(make_shared<rect_t>(555, 555, dvec3_t{0, 0, -555.5}, glm::quat(), white));
     scene.entities.add(make_shared<rect_t>(555, 555, dvec3_t{0, -277.5, -277.5}, r90x, white));
     scene.entities.add(make_shared<rect_t>(555, 555, dvec3_t{0,  277.5, -277.5}, r90x, white));
@@ -243,8 +247,8 @@ scene_t cornell_box(int image_width, int image_height) {
     scene.entities.add(make_shared<rect_t>(555, 555, dvec3_t{ 277.5, 0, -277.5}, r90y, green));
 
     //add some boxes
-    scene.entities.add(make_shared<box_t>(dvec3_t{50, -277.5 + (150.0/2.0), -150}, glm::quat(), 150, 150, 150, white));
-    scene.entities.add(make_shared<box_t>(dvec3_t{-100, -277.5 + (250/2.0), -400}, glm::quat(), 200, 250, 200, blue));
+    scene.entities.add(make_shared<box_t>(dvec3_t{50, -277.5 + (150.0/2.0), -150}, rn15y, 150, 150, 150, white));
+    scene.entities.add(make_shared<box_t>(dvec3_t{-100, -277.5 + (250/2.0), -400}, r15y, 200, 250, 200, blue));
     
 
     scene.background = {0.0, 0.0, 0.0};
