@@ -456,10 +456,10 @@ void loop_fn(void* arg) {
 
         ImGui::BeginDisabled(state->render_status->state() == render_state_t::rendering);
 
-        static int current_scene = 0;
-        const char* scenes[] {"Random Spheres", "Test Scene", "Earth", "Two Perlin Spheres", "Simple Light", "Simple Box", "Cornell Box", "Smoke", "All Test"};
+        static int current_scene = 7;
+        const char* scenes[] {"Random Spheres", "Test Scene", "Earth", "Two Perlin Spheres", "Simple Light", "Simple Box", "Cornell Box",  "All Test"};
         if(ImGui::Combo("Scene", &current_scene, scenes, sizeof(scenes) / sizeof(const char*))) {
-            if(current_scene == 0) {
+            if(current_scene == 7) {
                 state->cfg.scn = random_scene(state->screen->width(), state->screen->height());
             } else if(current_scene == 1) {
                 state->cfg.scn = three_spheres_scene(state->screen->width(), state->screen->height());
@@ -474,8 +474,6 @@ void loop_fn(void* arg) {
             } else if(current_scene == 6) {
                 state->cfg.scn = cornell_box(state->screen->width(), state->screen->height());
             } else if(current_scene == 7) {
-                state->cfg.scn = cornell_smoke_box(state->screen->width(), state->screen->height());
-            } else if(current_scene == 8) {
                 state->cfg.scn = all_test(state->screen->width(), state->screen->height());
             }
             
@@ -650,7 +648,7 @@ int main(int argc, char* argv[])
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC);
 
     {
-        render_config_t config(random_scene(default_image_width, default_image_height), default_samples_per_pixel, default_thread_count);
+        render_config_t config(all_test(default_image_width, default_image_height), default_samples_per_pixel, default_thread_count);
         auto screen = make_shared<streaming_image_texture_t>(renderer, default_image_width, default_image_height);
 
         // draw the test pattern so we don't have a black screen (also sanity
