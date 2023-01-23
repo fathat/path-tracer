@@ -266,7 +266,7 @@ int64_t next_pixel(app_state_t& state) {
         double u = (cs->x()+random_double()) / static_cast<double>(cam.width()-1);
         double v = (cs->y()+random_double()) / static_cast<double>(cam.height()-1);
         ray_t r = scn.cam.get_ray(u, v);
-        pixel_color += ray_color(r, scn.entities, 0, cfg.max_bounces);
+        pixel_color += ray_color(r, scn, *scn.root.get(), cfg.max_bounces);
     }
 
     state.screen->image()->write(cs->x(), (cam.height()-1)-cs->y(), pixel_color, cfg.samples_per_pixel);
