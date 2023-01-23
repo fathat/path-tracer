@@ -1,0 +1,1 @@
+emcmake cmake -G Ninja -S . -B build_emscripten_ninja
