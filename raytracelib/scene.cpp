@@ -288,11 +288,9 @@ scene_t cornell_smoke_box(int image_width, int image_height) {
     scene.entities.add(make_shared<rect_t>(555, 555, dvec3_t{ 277.5, 0, -277.5}, r90y, green));
 
     //add some boxes
-    auto box1 = make_shared<box_t>(dvec3_t{50, -277.5 + (150.0/2.0), -150}, rn15y, 150, 150, 150, white);
-    auto box2 = make_shared<box_t>(dvec3_t{-100, -277.5 + (250/2.0), -400}, r15y, 200, 250, 200, white);
-
-    scene.entities.add(make_shared<constant_medium_t>(box1, 0.1, color_t(0,0,0)));
-    scene.entities.add(make_shared<constant_medium_t>(box2, 0.1, color_t(0.5,0.5,0.5)));
+    auto box1 = make_shared<box_t>(dvec3_t{0, 0, 0}, glm::quat(), 150, 150, 150, white);
+    //scene.entities.add(box1);
+    scene.entities.add(make_shared<constant_medium_t>(box1, 0.01, color_t(0,0,0)));
     
 
     scene.background = {0.0, 0.0, 0.0};
